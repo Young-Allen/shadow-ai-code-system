@@ -1,5 +1,8 @@
 package com.shadow.aicodingsystem.exception;
 
+import lombok.Getter;
+
+@Getter
 public class BusinessException extends RuntimeException {
   /**
    * 错误码
@@ -20,5 +23,4 @@ public class BusinessException extends RuntimeException {
     super(errorCode.getMessage());
     this.code = errorCode.getCode();
   }
-  //测试冲突
 }
