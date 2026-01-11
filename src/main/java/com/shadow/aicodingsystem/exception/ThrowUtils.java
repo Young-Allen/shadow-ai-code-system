@@ -4,11 +4,11 @@ public class ThrowUtils {
     /**
      * 条件成立则抛异常
      * @param condition
-     * @param exception
+     * @param runtimeException
      */
-    public static void throwIf(boolean condition, RuntimeException exception) {
+    public static void throwIf(boolean condition, RuntimeException runtimeException) {
         if (condition) {
-            throw exception;
+            throw runtimeException;
         }
     }
 
