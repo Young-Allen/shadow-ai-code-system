@@ -5,6 +5,7 @@ public class BusinessException extends RuntimeException {
      * 错误码
      * @param message
      */
+    //测试冲突
     private final int code;
 
     public BusinessException(int code, String message) {
