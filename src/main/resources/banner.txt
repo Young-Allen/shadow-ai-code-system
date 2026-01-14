@@ -5,4 +5,4 @@
   ____) | | | | (_| | (_| | (_) | |
  |_____/|_| |_|\__,_|\__,_|\___/|_|
 
- :: ShadowW :: Spring Boot Application
+ :: ShadowW :: AI Coding System :: 1.0.0 ::

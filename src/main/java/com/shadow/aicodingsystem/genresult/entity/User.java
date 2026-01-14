@@ -1,19 +1,18 @@
-package com.shadow.aicodingsystem.model.entity;
+package com.shadow.aicodingsystem.genresult.entity;
 
 import com.mybatisflex.annotation.Column;
 import com.mybatisflex.annotation.Id;
 import com.mybatisflex.annotation.KeyType;
 import com.mybatisflex.annotation.Table;
-import com.mybatisflex.core.keygen.KeyGenerators;
+import java.io.Serializable;
+import java.time.LocalDateTime;
+
+import java.io.Serial;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import javax.crypto.KeyGenerator;
-import java.io.Serial;
-import java.io.Serializable;
-import java.time.LocalDateTime;
 
 /**
  * 用户 实体类。
@@ -33,7 +32,7 @@ public class User implements Serializable {
     /**
      * id
      */
-    @Id(keyType = KeyType.Generator, value = KeyGenerators.snowFlakeId)
+    @Id(keyType = KeyType.Auto)
     private Long id;
 
     /**

@@ -1,7 +1,7 @@
-package com.shadow.aicodingsystem.mapper;
+package com.shadow.aicodingsystem.genresult.mapper;
 
 import com.mybatisflex.core.BaseMapper;
-import com.shadow.aicodingsystem.model.entity.User;
+import com.shadow.aicodingsystem.genresult.entity.User;
 
 /**
  * 用户 映射层。
