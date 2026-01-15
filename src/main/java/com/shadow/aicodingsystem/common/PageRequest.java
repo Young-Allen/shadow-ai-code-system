@@ -1,5 +1,8 @@
 package com.shadow.aicodingsystem.common;
 
+import lombok.Data;
+
+@Data
 public class PageRequest {
     /**
      * 当前页
