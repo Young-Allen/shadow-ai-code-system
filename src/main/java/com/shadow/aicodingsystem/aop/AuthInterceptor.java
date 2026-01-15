@@ -65,4 +65,36 @@ public class AuthInterceptor {
 
     }
 
+    @Around("@annotation(authCheck)")
+    public Object doAuthCheck(
+            ProceedingJoinPoint joinPoint,
+            AuthCheck authCheck
+    )throws Throwable{
+        // 1. 拿到请求
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+
+        // 2. 获取当前登录用户
+        User loginUser = userService.getLoginUser(request);
+
+        // 3. 拿到注解中指定的角色
+        String mustRole = authCheck.mustRole();
+        UserRoleEnum userRoleEnum = UserRoleEnum.getEnumByValue(mustRole);
+
+        // 4. 如果不要求角色：直接放行
+        if(userRoleEnum == null) {
+            return joinPoint.proceed();
+        }
+
+        //5. 获取用户角色
+        UserRoleEnum loginUserRoleEnum = UserRoleEnum.getEnumByValue(loginUser.getUserRole());
+
+        // 6. 如果用户没有角色：抛出异常
+        if(loginUserRoleEnum == null || !userRoleEnum.equals(loginUserRoleEnum)){
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
+        }
+
+        // 7. 权限通过：放行
+        return joinPoint.proceed();
+    }
+
 }

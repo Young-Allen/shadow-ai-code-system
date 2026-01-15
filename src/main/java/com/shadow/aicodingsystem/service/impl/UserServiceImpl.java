@@ -1,21 +1,27 @@
 package com.shadow.aicodingsystem.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.shadow.aicodingsystem.exception.BusinessException;
 import com.shadow.aicodingsystem.exception.ErrorCode;
+import com.shadow.aicodingsystem.model.dto.user.UserQueryRequest;
 import com.shadow.aicodingsystem.model.entity.User;
 import com.shadow.aicodingsystem.mapper.UserMapper;
 import com.shadow.aicodingsystem.model.enums.UserRoleEnum;
 import com.shadow.aicodingsystem.model.vo.LoginUserVO;
+import com.shadow.aicodingsystem.model.vo.UserVO;
 import com.shadow.aicodingsystem.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.shadow.aicodingsystem.constant.UserConstant.USER_LOGIN_STATE;
 
@@ -63,8 +69,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
         }
 
         //检查是否重复
-        QueryWrapper queryWrapper = new QueryWrapper();
-        queryWrapper.eq("userAccount", userAccount);
+        QueryWrapper queryWrapper = QueryWrapper.create()
+                        .eq("userAccount", userAccount);
         long count  = this.mapper.selectCountByQuery(queryWrapper);
         if(count > 0){
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户账号已存在");
@@ -143,5 +149,55 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
         //移除登录状态
         request.getSession().removeAttribute(USER_LOGIN_STATE);
         return true;
+    }
+
+    /**
+     * 将User对象转换为UserVO对象
+     * @param user 需要转换的User对象
+     * @return 转换后的UserVO对象，如果输入为null则返回null
+     */
+    @Override
+    public UserVO getUserVO(User user) {
+    // 检查输入参数是否为null
+        if(user == null){
+        // 如果为null，直接返回null
+            return null;
+        }
+    // 创建UserVO对象
+        UserVO userVO = new UserVO();
+    // 使用BeanUtil将user对象的属性值复制到userVO对象中
+        BeanUtil.copyProperties(user, userVO);
+    // 返回转换后的userVO对象
+        return userVO;
+    }
+
+    @Override
+    public List<UserVO> getUserVOList(List<User> userList) {
+        if(CollUtil.isEmpty(userList)){
+            return new ArrayList<>();
+        }
+        return userList.stream().map(this::getUserVO).collect(Collectors.toList());
+    }
+
+    @Override
+    public QueryWrapper getQueryWrapper(UserQueryRequest userQueryRequest) {
+        if(userQueryRequest == null){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数为空");
+        }
+
+        Long id = userQueryRequest.getId();
+        String userAccount = userQueryRequest.getUserAccount();
+        String userName = userQueryRequest.getUserName();
+        String userProfile = userQueryRequest.getUserProfile();
+        String userRole = userQueryRequest.getUserRole();
+        String sortField = userQueryRequest.getSortField();
+        String sortOrder = userQueryRequest.getSortOrder();
+        return QueryWrapper.create()
+                .eq(User::getId, id, id != null)
+                .eq(User::getUserRole, userRole)
+                .eq("userAccount", userAccount)
+                .eq("userName", userName)
+                .eq("userProfile", userProfile)
+                .orderBy(sortField, "ascend".equals(sortOrder));
     }
 }
