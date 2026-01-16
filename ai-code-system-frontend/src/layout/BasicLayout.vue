@@ -9,25 +9,40 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { RouterView } from 'vue-router'
+import router from '@/router'
 import GlobalHeader from '@/components/GlobalHeader.vue'
 import GlobalFooter from '@/components/GlobalFooter.vue'
+import { useLoginUserStore } from '@/stores/loginUser'
+import checkAccess from '@/access/checkAccess'
+import ACCESS_ENUM from '@/access/accessEnum'
 
 interface MenuItem {
   key: string
   label: string
-  path?: string
+  path: string
 }
 
-interface Props {
-  menuItems?: MenuItem[]
-}
+// 你原来的菜单定义保留（也可以未来改成从 routes 自动生成）
+const allMenuItems: MenuItem[] = [
+  { key: 'home', label: '首页', path: '/' },
+  { key: 'userManage', label: '用户管理', path: '/admin/userManage' },
+]
 
-withDefaults(defineProps<Props>(), {
-  menuItems: () => [
-    { key: 'home', label: '首页', path: '/' },
-    { key: 'about', label: '关于', path: '/about' },
-  ],
+const loginUserStore = useLoginUserStore()
+
+const menuItems = computed(() => {
+  return allMenuItems.filter((menu) => {
+    const routeRecord = router.getRoutes().find((r) => r.path === menu.path)
+    if (!routeRecord) return true
+
+    // hideInMenu 强制隐藏
+    if ((routeRecord.meta as any)?.hideInMenu) return false
+
+    const needAccess = ((routeRecord.meta as any)?.access as string) ?? ACCESS_ENUM.NOT_LOGIN
+    return checkAccess(loginUserStore.loginUser, needAccess as any)
+  })
 })
 </script>
 
@@ -45,7 +60,6 @@ withDefaults(defineProps<Props>(), {
   }
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .basic-layout .layout-content {
     padding: 16px;
