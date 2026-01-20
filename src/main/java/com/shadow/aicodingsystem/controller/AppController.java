@@ -2,6 +2,7 @@ package com.shadow.aicodingsystem.controller;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.mybatisflex.core.paginate.Page;
 import com.shadow.aicodingsystem.ai.model.enums.CodeGenTypeEnum;
 import com.shadow.aicodingsystem.annotation.AuthCheck;
@@ -24,10 +25,15 @@ import com.shadow.aicodingsystem.service.AppService;
 import com.shadow.aicodingsystem.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 应用 控制层。
@@ -284,5 +290,46 @@ public class AppController {
         App app = appService.getById(id);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR);
         return ResultUtils.success(app);
+    }
+
+    /**
+     * 处理代码生成的聊天请求，返回流式响应
+     * 该接口使用SSE（Server-Sent Events）技术实现服务端向客户端推送数据流
+     *
+     * @param appId 应用ID，用于标识特定的代码生成应用
+     * @param message 用户输入的消息内容，将用于生成代码
+     * @param request HTTP请求对象，用于获取用户登录信息
+     * @return 返回一个Flux<String>类型的响应流，包含生成的代码内容
+     */
+    @GetMapping(value = "/chat/gen/code", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<String>> chatToGenCode(@RequestParam Long appId,
+                                                       @RequestParam String message,
+                                                       HttpServletRequest request) {
+        // 参数校验：检查应用ID是否有效（必须大于0）
+        ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID无效");
+    // 参数校验：检查用户消息是否为空
+        ThrowUtils.throwIf(StrUtil.isBlank(message), ErrorCode.PARAMS_ERROR, "用户消息不能为空");
+        //获取登录用户
+        User loginUser = userService.getLoginUser(request);
+        //调用服务生成代码（流式）
+        Flux<String> contentFlux = appService.chatToGenCode(appId, message, loginUser);
+
+        //转换成 ServerSentEvent 格式
+        return contentFlux
+                .map(chunk -> {
+                    //将内容包装为JSON对象
+                    Map<String, String> wrapper = Map.of("d", chunk);
+                    String jsonData = JSONUtil.toJsonStr(wrapper);
+                    return ServerSentEvent.<String>builder()
+                            .data(jsonData)
+                            .build();
+                })
+                .concatWith(Mono.just(
+                        //发送结束事件
+                        ServerSentEvent.<String>builder()
+                                .event("done")
+                                .data("")
+                                .build()
+                ));
     }
 }

@@ -5,7 +5,9 @@ import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.service.IService;
 import com.shadow.aicodingsystem.model.dto.app.AppQueryRequest;
 import com.shadow.aicodingsystem.model.entity.App;
+import com.shadow.aicodingsystem.model.entity.User;
 import com.shadow.aicodingsystem.model.vo.AppVO;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 
@@ -39,4 +41,14 @@ public interface AppService extends IService<App> {
      * @return QueryWrapper 查询条件对象
      */
     QueryWrapper getQueryWrapper(AppQueryRequest appQueryRequest);
+
+    /**
+     * 聊天生成代码
+     *
+     * @param appId       应用ID
+     * @param message     消息
+     * @param loginuser   登录用户
+     * @return Flux<String> 代码生成结果
+     */
+    Flux<String> chatToGenCode(Long appId, String message, User loginuser);
 }

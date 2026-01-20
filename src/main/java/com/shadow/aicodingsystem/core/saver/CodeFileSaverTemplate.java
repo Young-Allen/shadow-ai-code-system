@@ -19,13 +19,14 @@ public abstract class CodeFileSaverTemplate <T>{
      * 该方法是一个模板方法，定义了保存代码的基本流程，具体文件保存逻辑由子类实现
      *
      * @param result 需要保存的代码结果对象
+     * @param appId  应用ID
      * @return 保存结果的File对象，指向保存的目录
      */
-    public final File saveCode(T result){
+    public final File saveCode(T result, Long appId){
         //1. 验证输入参数的有效性
         validateInput(result);
         //2. 构建目录
-        String baseDirPath = buildUniqueDir();
+        String baseDirPath = buildUniqueDir(appId);
         //3. 保存文件（具体实现由子类提供）
         saveFiles(result, baseDirPath);
         //4. 返回文件
@@ -49,11 +50,14 @@ public abstract class CodeFileSaverTemplate <T>{
      * 该方法会根据业务类型和生成的唯一ID创建一个新的目录
      * @return 返回创建好的目录路径
      */
-    protected final String buildUniqueDir(){
+    protected final String buildUniqueDir(Long appId){
+        if(appId == null){
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "appId不能为空");
+        }
         // 获取业务类型的值
         String codeType = getCodeType().getValue();
         // 使用业务类型和雪花算法生成的唯一ID组合成目录名称
-        String uniqueDirName = StrUtil.format("{}_{}", codeType, IdUtil.getSnowflakeNextIdStr());
+        String uniqueDirName = StrUtil.format("{}_{}", codeType, appId);
         // 拼接完整的目录路径
         String dirPath = FILE_SAVE_ROOT_DIR + File.separator + uniqueDirName;
         // 创建目录（如果不存在）
