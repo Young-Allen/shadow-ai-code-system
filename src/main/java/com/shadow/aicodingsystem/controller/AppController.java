@@ -14,10 +14,7 @@ import com.shadow.aicodingsystem.constant.UserConstant;
 import com.shadow.aicodingsystem.exception.BusinessException;
 import com.shadow.aicodingsystem.exception.ErrorCode;
 import com.shadow.aicodingsystem.exception.ThrowUtils;
-import com.shadow.aicodingsystem.model.dto.app.AppAddRequest;
-import com.shadow.aicodingsystem.model.dto.app.AppAdminUpdateRequest;
-import com.shadow.aicodingsystem.model.dto.app.AppQueryRequest;
-import com.shadow.aicodingsystem.model.dto.app.AppUpdateRequest;
+import com.shadow.aicodingsystem.model.dto.app.*;
 import com.shadow.aicodingsystem.model.entity.App;
 import com.shadow.aicodingsystem.model.entity.User;
 import com.shadow.aicodingsystem.model.vo.AppVO;
@@ -307,7 +304,7 @@ public class AppController {
                                                        HttpServletRequest request) {
         // 参数校验：检查应用ID是否有效（必须大于0）
         ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID无效");
-    // 参数校验：检查用户消息是否为空
+        // 参数校验：检查用户消息是否为空
         ThrowUtils.throwIf(StrUtil.isBlank(message), ErrorCode.PARAMS_ERROR, "用户消息不能为空");
         //获取登录用户
         User loginUser = userService.getLoginUser(request);
@@ -331,5 +328,26 @@ public class AppController {
                                 .data("")
                                 .build()
                 ));
+    }
+
+    /**
+     * 部署应用接口
+     * @param appDeployRequest 应用部署请求参数，包含应用ID等信息
+     * @param request HTTP请求对象，用于获取当前登录用户信息
+     * @return 返回部署成功的URL地址
+     */
+    @PostMapping("/deploy")
+    public BaseResponse<String> deployApp(@RequestBody AppDeployRequest appDeployRequest, HttpServletRequest request) {
+    // 检查请求参数是否为空
+        ThrowUtils.throwIf(appDeployRequest == null, ErrorCode.PARAMS_ERROR);
+        Long id = appDeployRequest.getAppId();
+    // 检查应用ID是否有效
+        ThrowUtils.throwIf(id == null || id <= 0, ErrorCode.PARAMS_ERROR,"应用ID不能为空");
+    // 获取当前登录用户信息
+        User loginUser = userService.getLoginUser(request);
+    // 执行应用部署操作，获取部署URL
+        String deployUrl = appService.deployApp(id, loginUser);
+    // 返回成功响应，包含部署URL
+        return ResultUtils.success(deployUrl);
     }
 }

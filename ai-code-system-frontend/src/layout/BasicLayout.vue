@@ -28,6 +28,7 @@ interface MenuItem {
 const allMenuItems: MenuItem[] = [
   { key: 'home', label: '首页', path: '/' },
   { key: 'userManage', label: '用户管理', path: '/admin/userManage' },
+  { key: 'appManage', label: '应用管理', path: '/admin/appManage' },
 ]
 
 const loginUserStore = useLoginUserStore()

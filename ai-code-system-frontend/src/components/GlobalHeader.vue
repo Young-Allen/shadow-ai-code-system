@@ -1,7 +1,7 @@
 <template>
   <a-layout-header class="global-header">
     <div class="header-left">
-      <img v-if="logoPath" src="@/assets/bot.png" alt="Logo" class="logo" />
+      <img v-if="logoPath" src="@/assets/home.png" alt="Logo" class="logo" />
       <h1 class="site-title">{{ siteTitle }}</h1>
     </div>
     <a-menu
@@ -53,7 +53,7 @@
 import { ref, computed, watch, onMounted, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { MenuProps } from 'ant-design-vue'
-import { LogoutOutlined, HomeOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons-vue'
+import { LogoutOutlined, HomeOutlined, TeamOutlined, UserOutlined, AppstoreOutlined } from '@ant-design/icons-vue'
 import { useLoginUserStore } from '@/stores/loginUser'
 import { userLogout } from '@/api/userController'
 import { message } from 'ant-design-vue'
@@ -75,7 +75,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   logoPath: '/logo.png',
-  siteTitle: 'ShadowW AI',
+  siteTitle: 'ShadowW ZeroCode',
   menuItems: () => [
     { key: 'home', label: '首页', path: '/' },
     { key: 'userManage', label: '用户管理', path: '/admin/userManage' },
@@ -91,6 +91,7 @@ const selectedKeys = ref<string[]>([])
 const iconMap: Record<string, any> = {
   home: HomeOutlined,
   userManage: TeamOutlined,
+  appManage: AppstoreOutlined,
 }
 
 // 将 menuItems 转换为 Ant Design Vue Menu 需要的格式
