@@ -1,7 +1,7 @@
 <template>
   <a-layout-header class="global-header">
-    <div class="header-left">
-      <img v-if="logoPath" src="@/assets/bot.png" alt="Logo" class="logo" />
+    <div class="header-left" @click="handleGoHome">
+      <img v-if="logoPath" src="@/assets/home.png" alt="Logo" class="logo" />
       <h1 class="site-title">{{ siteTitle }}</h1>
     </div>
     <a-menu
@@ -53,7 +53,7 @@
 import { ref, computed, watch, onMounted, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { MenuProps } from 'ant-design-vue'
-import { LogoutOutlined, HomeOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons-vue'
+import { LogoutOutlined, HomeOutlined, TeamOutlined, UserOutlined, AppstoreOutlined } from '@ant-design/icons-vue'
 import { useLoginUserStore } from '@/stores/loginUser'
 import { userLogout } from '@/api/userController'
 import { message } from 'ant-design-vue'
@@ -75,7 +75,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   logoPath: '/logo.png',
-  siteTitle: 'ShadowW AI',
+  siteTitle: 'ShadowW ZeroCode',
   menuItems: () => [
     { key: 'home', label: '首页', path: '/' },
     { key: 'userManage', label: '用户管理', path: '/admin/userManage' },
@@ -91,6 +91,7 @@ const selectedKeys = ref<string[]>([])
 const iconMap: Record<string, any> = {
   home: HomeOutlined,
   userManage: TeamOutlined,
+  appManage: AppstoreOutlined,
 }
 
 // 将 menuItems 转换为 Ant Design Vue Menu 需要的格式
@@ -152,6 +153,11 @@ const handleRegister = () => {
   router.push('/user/register')
 }
 
+// 处理点击logo/标题跳转首页
+const handleGoHome = () => {
+  router.push('/')
+}
+
 // 处理下拉菜单点击
 const handleMenuClick = async ({ key }: { key: string }) => {
   if (key === 'profile') {
@@ -202,14 +208,24 @@ onMounted(() => {
   padding: 0 24px;
   background: #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  position: relative;
-  z-index: 1;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--global-header-height, 64px);
+  z-index: 1000;
 
   .header-left {
     display: flex;
     align-items: center;
     margin-right: 48px;
     min-width: 200px;
+    cursor: pointer;
+    transition: opacity 0.3s;
+  }
+
+  .header-left:hover {
+    opacity: 0.8;
   }
 
   .header-left .logo {
@@ -230,7 +246,7 @@ onMounted(() => {
   .header-menu {
     flex: 1;
     border-bottom: none;
-    line-height: 64px;
+    line-height: var(--global-header-height, 64px);
     min-width: 0;
   }
 

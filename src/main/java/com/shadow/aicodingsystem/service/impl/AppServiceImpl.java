@@ -2,10 +2,14 @@ package com.shadow.aicodingsystem.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.io.FileUtil;
+import cn.hutool.core.util.IdUtil;
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.shadow.aicodingsystem.ai.model.enums.CodeGenTypeEnum;
+import com.shadow.aicodingsystem.constant.AppConstant;
 import com.shadow.aicodingsystem.core.AiCodeGeneratorFacade;
 import com.shadow.aicodingsystem.exception.BusinessException;
 import com.shadow.aicodingsystem.exception.ErrorCode;
@@ -22,6 +26,8 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
+import java.io.File;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -140,5 +146,51 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         }
         //5. 调用 AI 生成代码
         return aiCodeGeneratorFacade.generateAndSaveCodeStream(message, codeGenTypeEnum, appId);
+    }
+
+    @Override
+    public String deployApp(Long appId, User loginUser) {
+        //1. 参数校验
+        ThrowUtils.throwIf(appId == null || appId < 0, ErrorCode.PARAMS_ERROR, "appId不能为空");
+        ThrowUtils.throwIf(loginUser == null, ErrorCode.PARAMS_ERROR, "登录用户不能为空");
+        //2. 查询应用信息
+        App app = this.getById(appId);
+        ThrowUtils.throwIf(app == null, ErrorCode.PARAMS_ERROR, "应用不存在");
+        //3. 验证用户是否有权限部署该应用，仅本人可以部署
+        if(!app.getUserId().equals(loginUser.getId())){
+            ThrowUtils.throwIf(true, ErrorCode.PARAMS_ERROR, "没有权限部署该应用");
+        }
+        //4. 查询是否已有deployKey，如果没有则生成新的
+        String deployKey = app.getDeployKey();
+        if(StrUtil.isBlank(deployKey)){
+            deployKey = RandomUtil.randomString(6);
+        }
+        //5. 获取代码生成类型，构建原目录路径，检查是否存在
+        String codeGenType = app.getCodeGenType();
+        String sourceDirName = codeGenType + "_" + appId;
+        String sourceDirPath = AppConstant.CODE_OUTPUT_ROOT_DIR + File.separator + sourceDirName;
+
+        File sourceDir = new File(sourceDirPath);
+        ThrowUtils.throwIf(!sourceDir.exists() || !sourceDir.isDirectory(), 
+                ErrorCode.PARAMS_ERROR, "代码目录不存在，请先生成代码");
+        //6. 复制文件到部署目录
+        // 部署目录：tmp/code_deploy/{deployKey}
+        String deployDirPath = AppConstant.CODE_DEPLOY_ROOT_DIR + File.separator + deployKey;
+        try{
+            FileUtil.copyContent(sourceDir, new File(deployDirPath) , true);
+        }catch (Exception e){
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "部署失败" + e.getMessage());
+        }
+
+        //7. 更新应用的deployKey和部署时间，并返回url
+        App updateApp = new App();
+        updateApp.setId(appId);
+        updateApp.setDeployKey(deployKey);
+        updateApp.setDeployedTime(LocalDateTime.now());
+        boolean updatedById = this.updateById(updateApp);
+        ThrowUtils.throwIf(!updatedById, ErrorCode.SYSTEM_ERROR, "部署失败");
+
+        //8. 返回部署url
+        return String.format("%s/%s/", AppConstant.CODE_DEPLOY_HOST, deployKey);
     }
 }

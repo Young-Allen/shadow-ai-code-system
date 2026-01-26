@@ -28,6 +28,7 @@ interface MenuItem {
 const allMenuItems: MenuItem[] = [
   { key: 'home', label: '首页', path: '/' },
   { key: 'userManage', label: '用户管理', path: '/admin/userManage' },
+  { key: 'appManage', label: '应用管理', path: '/admin/appManage' },
 ]
 
 const loginUserStore = useLoginUserStore()
@@ -48,6 +49,7 @@ const menuItems = computed(() => {
 
 <style scoped>
 .basic-layout {
+  --global-header-height: 64px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -55,6 +57,7 @@ const menuItems = computed(() => {
   .layout-content {
     flex: 1;
     padding: 24px;
+    padding-top: calc(24px + var(--global-header-height));
     background: #fff;
     min-height: 0;
   }
@@ -63,6 +66,7 @@ const menuItems = computed(() => {
 @media (max-width: 768px) {
   .basic-layout .layout-content {
     padding: 16px;
+    padding-top: calc(16px + var(--global-header-height));
   }
 }
 </style>

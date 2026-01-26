@@ -48,6 +48,32 @@ const router = createRouter({
       },
     },
     {
+      path: '/admin/appManage',
+      name: '应用管理',
+      component: () => import('../pages/admin/AppManagerPage.vue'),
+      meta: {
+        access: ACCESS_ENUM.ADMIN, // 管理员
+      },
+    },
+    {
+      path: '/app/chat/:id',
+      name: '应用对话',
+      component: () => import('../pages/app/AppChatPage.vue'),
+      meta: {
+        access: ACCESS_ENUM.USER, // 需要登录
+        hideInMenu: true,
+      },
+    },
+    {
+      path: '/app/edit/:id',
+      name: '编辑应用',
+      component: () => import('../pages/app/AppEditPage.vue'),
+      meta: {
+        access: ACCESS_ENUM.USER, // 需要登录
+        hideInMenu: true,
+      },
+    },
+    {
       path: '/noAuth',
       name: '无权限',
       component: () => import('../pages/NoAuthPage.vue'),
