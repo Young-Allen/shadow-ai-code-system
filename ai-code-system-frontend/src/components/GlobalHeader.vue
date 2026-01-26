@@ -1,6 +1,6 @@
 <template>
   <a-layout-header class="global-header">
-    <div class="header-left">
+    <div class="header-left" @click="handleGoHome">
       <img v-if="logoPath" src="@/assets/home.png" alt="Logo" class="logo" />
       <h1 class="site-title">{{ siteTitle }}</h1>
     </div>
@@ -153,6 +153,11 @@ const handleRegister = () => {
   router.push('/user/register')
 }
 
+// 处理点击logo/标题跳转首页
+const handleGoHome = () => {
+  router.push('/')
+}
+
 // 处理下拉菜单点击
 const handleMenuClick = async ({ key }: { key: string }) => {
   if (key === 'profile') {
@@ -203,14 +208,24 @@ onMounted(() => {
   padding: 0 24px;
   background: #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  position: relative;
-  z-index: 1;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--global-header-height, 64px);
+  z-index: 1000;
 
   .header-left {
     display: flex;
     align-items: center;
     margin-right: 48px;
     min-width: 200px;
+    cursor: pointer;
+    transition: opacity 0.3s;
+  }
+
+  .header-left:hover {
+    opacity: 0.8;
   }
 
   .header-left .logo {
@@ -231,7 +246,7 @@ onMounted(() => {
   .header-menu {
     flex: 1;
     border-bottom: none;
-    line-height: 64px;
+    line-height: var(--global-header-height, 64px);
     min-width: 0;
   }
 

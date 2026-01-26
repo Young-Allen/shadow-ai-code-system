@@ -86,19 +86,44 @@
             @click="handleAppClick(app)"
           >
             <div class="app-cover">
-              <img
+              <a-image
                 v-if="app.cover"
                 :src="app.cover"
                 :alt="app.appName"
+                :preview="false"
+                class="app-cover-image"
                 @error="handleImageError"
               />
-              <div v-else class="app-placeholder">
-                <FileTextOutlined />
-              </div>
+              <a-image
+                v-else
+                :src="undefined"
+                :alt="app.appName"
+                :preview="false"
+                class="app-cover-image"
+              />
             </div>
             <div class="app-info">
-              <h3 class="app-name">{{ app.appName || '未命名应用' }}</h3>
-              <p class="app-time">{{ formatTime(app.createTime) }}</p>
+              <img
+                :src="loginUserStore.loginUser.userAvatar || defaultAvatar"
+                :alt="loginUserStore.loginUser.userName"
+                class="app-info-avatar"
+                @error="handleAvatarError"
+              />
+              <div class="app-info-right">
+                <h3 class="app-name">{{ app.appName || '未命名应用' }}</h3>
+                <p class="app-author-name">{{ loginUserStore.loginUser.userName || '匿名' }}</p>
+              </div>
+            </div>
+            <div class="app-card-actions" @click.stop>
+              <a-button  size="large" type="primary" @click.stop="handleViewChat(app)">查看对话</a-button>
+              <a-button
+                v-if="app.deployKey"
+                size="small"
+                type="primary"
+                @click.stop="handleViewDeploy(app)"
+              >
+                查看作品
+              </a-button>
             </div>
           </div>
         </div>
@@ -139,27 +164,51 @@
             @click="handleAppClick(app)"
           >
             <div class="app-cover">
-              <img
+              <a-image
                 v-if="app.cover"
                 :src="app.cover"
                 :alt="app.appName"
+                :preview="false"
+                class="app-cover-image"
                 @error="handleImageError"
               />
-              <div v-else class="app-placeholder">
-                <FileTextOutlined />
-              </div>
+              <a-image
+                v-else
+                :src="undefined"
+                :alt="app.appName"
+                :preview="false"
+                class="app-cover-image"
+              />
             </div>
             <div class="app-info">
-              <h3 class="app-name">{{ app.appName || '未命名应用' }}</h3>
-              <div class="app-author" v-if="app.user">
-                <img
-                  :src="app.user.userAvatar || defaultAvatar"
-                  :alt="app.user.userName"
-                  class="author-avatar"
-                  @error="handleAvatarError"
-                />
-                <span class="author-name">{{ app.user.userName || '匿名' }}</span>
+              <img
+                v-if="app.user"
+                :src="app.user.userAvatar || defaultAvatar"
+                :alt="app.user.userName"
+                class="app-info-avatar"
+                @error="handleAvatarError"
+              />
+              <img
+                v-else
+                :src="defaultAvatar"
+                alt="匿名"
+                class="app-info-avatar"
+                @error="handleAvatarError"
+              />
+              <div class="app-info-right">
+                <h3 class="app-name">{{ app.appName || '未命名应用' }}</h3>
+                <p class="app-author-name">{{ app.user?.userName || '匿名' }}</p>
               </div>
+            </div>
+            <div class="app-card-actions" @click.stop>
+              <a-button size="large" type="primary" @click.stop="handleViewChat(app)">查看对话</a-button>
+              <a-button
+                v-if="app.deployKey"
+                size="large"
+                @click.stop="handleViewDeploy(app)"
+              >
+                查看作品
+              </a-button>
             </div>
           </div>
         </div>
@@ -183,12 +232,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { message, Image } from 'ant-design-vue'
 import {
   PaperClipOutlined,
   ThunderboltOutlined,
   ArrowUpOutlined,
-  FileTextOutlined,
 } from '@ant-design/icons-vue'
 import { addApp, listMyAppVoByPage, listFeaturedAppVoByPage } from '@/api/appController'
 import { useLoginUserStore } from '@/stores/loginUser'
@@ -196,6 +244,9 @@ import hamburgerImg from '@/assets/hamburger.png'
 
 const router = useRouter()
 const loginUserStore = useLoginUserStore()
+
+//默认封面图
+const undefined = 'https://cube.elemecdn.com/6/94/4d3ea53c084bad6931a56d5158a48jpeg.jpeg'
 
 // 用户提示词
 const userPrompt = ref('')
@@ -352,9 +403,19 @@ const fetchFeaturedApps = async () => {
  * 点击应用卡片
  */
 const handleAppClick = (app: API.AppVO) => {
-  if (app.id) {
-    router.push(`/app/chat/${String(app.id)}`)
-  }
+  handleViewChat(app)
+}
+
+const handleViewChat = (app: API.AppVO) => {
+  if (!app.id) return
+  router.push({ path: `/app/chat/${String(app.id)}`, query: { view: '1' } })
+}
+
+const handleViewDeploy = (app: API.AppVO) => {
+  if (!app.deployKey) return
+  const deployKey = String(app.deployKey || '').replace(/^\//, '')
+  const deployUrl = `http://localhost/${deployKey}`
+  window.open(deployUrl, '_blank')
 }
 
 /**
@@ -444,8 +505,27 @@ onMounted(() => {
   max-width: 1200px;
   margin: 0 auto;
   padding: 40px 24px;
-  background: linear-gradient(to bottom, #f5f5f5 0%, #e6f7ff 100%);
   min-height: calc(100vh - 64px);
+  position: relative;
+  z-index: 0; /* 可选：明确层级 */
+}
+
+/* 确保背景渐变覆盖整个视口 */
+.home-page::before {
+  content: '';
+  position: fixed;
+  top: 64px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to bottom, #f0f2f5 0%, #d5e8f1 50%, #94d4f7 100%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.home-page > * {
+  position: relative;
+  z-index: 1;
 }
 
 .page-header {
@@ -576,11 +656,31 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.3s;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
 }
 
 .app-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.app-card-actions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 2;
+}
+
+.app-card:hover .app-card-actions {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .app-cover {
@@ -593,54 +693,65 @@ onMounted(() => {
   overflow: hidden;
 }
 
-.app-cover img {
+.app-cover-image {
+  width: 100%;
+  height: 100%;
+}
+
+.app-cover-image :deep(.ant-image-img) {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.app-placeholder {
-  font-size: 48px;
-  color: #ccc;
+.app-cover-image :deep(.ant-image) {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .app-info {
   padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-info-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.app-info-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .app-name {
   font-size: 16px;
   font-weight: 600;
-  margin: 0 0 8px 0;
+  margin: 0;
   color: #1a1a1a;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.app-time {
-  font-size: 12px;
-  color: #999;
-  margin: 0;
-}
-
-.app-author {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.author-avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.author-name {
+.app-author-name {
   font-size: 12px;
   color: #666;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pagination-wrapper {
@@ -685,5 +796,12 @@ onMounted(() => {
   .section-header .ant-input-search {
     width: 100% !important;
   }
+}
+</style>
+
+<style>
+/* 全局样式：覆盖 BasicLayout 的白色背景，仅对首页生效 */
+body .layout-content {
+  background: transparent !important;
 }
 </style>

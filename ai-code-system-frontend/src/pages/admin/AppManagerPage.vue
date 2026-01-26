@@ -12,11 +12,12 @@
         />
       </a-form-item>
       <a-form-item label="代码类型">
-        <a-input
+        <a-select
           v-model:value="searchForm.codeGenType"
-          placeholder="请输入代码类型"
+          :options="CODE_GEN_TYPE_OPTIONS as any"
+          placeholder="请选择代码类型"
           allow-clear
-          style="width: 200px"
+          style="width: 260px"
         />
       </a-form-item>
       <a-form-item label="用户ID">
@@ -120,6 +121,7 @@ import {
 import { message, Modal } from 'ant-design-vue'
 import { SearchOutlined } from '@ant-design/icons-vue'
 import hamburgerImg from '@/assets/hamburger.png'
+import { CODE_GEN_TYPE_OPTIONS } from '@/constants/codeGenType'
 
 const router = useRouter()
 
@@ -191,7 +193,7 @@ const searchForm = reactive<{
   userId?: number
 }>({
   appName: '',
-  codeGenType: '',
+  codeGenType: undefined,
   userId: undefined,
 })
 
@@ -254,7 +256,7 @@ const handleSearch = () => {
  */
 const handleReset = () => {
   searchForm.appName = ''
-  searchForm.codeGenType = ''
+  searchForm.codeGenType = undefined
   searchForm.userId = undefined
   pagination.current = 1
   fetchAppList()

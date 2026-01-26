@@ -8,6 +8,23 @@
         :wrapper-col="{ span: 20 }"
         @finish="handleSubmit"
       >
+        <a-form-item label="初始提示词" name="initPrompt">
+          <a-textarea
+            v-model:value="formData.initPrompt"
+            :rows="4"
+            placeholder="初始提示词"
+            disabled
+          />
+        </a-form-item>
+
+        <a-form-item label="生成类型" name="codeGenType">
+          <a-input v-model:value="formData.codeGenType" placeholder="生成类型" disabled />
+        </a-form-item>
+
+        <a-form-item label="部署密钥" name="deployKey">
+          <a-input v-model:value="formData.deployKey" placeholder="部署密钥" disabled />
+        </a-form-item>
+
         <a-form-item label="应用名称" name="appName" :rules="[{ required: true, message: '请输入应用名称' }]">
           <a-input v-model:value="formData.appName" placeholder="请输入应用名称" />
         </a-form-item>
@@ -65,10 +82,16 @@ const isAdmin = computed(() => {
 // 表单数据
 const formData = reactive<{
   appName: string
+  initPrompt?: string
+  codeGenType?: string
+  deployKey?: string
   cover?: string
   priority?: number
 }>({
   appName: '',
+  initPrompt: '',
+  codeGenType: '',
+  deployKey: '',
   cover: '',
   priority: 0,
 })
@@ -94,6 +117,9 @@ const initApp = async () => {
       res = await getAppById({ id: id as any })
       if (res.data.code === 0 && res.data.data) {
         const app = res.data.data
+        formData.initPrompt = app.initPrompt || ''
+        formData.codeGenType = app.codeGenType || ''
+        formData.deployKey = app.deployKey || ''
         formData.appName = app.appName || ''
         formData.cover = app.cover || ''
         formData.priority = app.priority || 0
@@ -109,6 +135,9 @@ const initApp = async () => {
           router.push('/')
           return
         }
+        formData.initPrompt = app.initPrompt || ''
+        formData.codeGenType = app.codeGenType || ''
+        formData.deployKey = app.deployKey || ''
         formData.appName = app.appName || ''
       }
     }
