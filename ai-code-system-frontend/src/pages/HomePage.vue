@@ -118,8 +118,7 @@
               <a-button  size="large" type="primary" @click.stop="handleViewChat(app)">查看对话</a-button>
               <a-button
                 v-if="app.deployKey"
-                size="small"
-                type="primary"
+                size="large"
                 @click.stop="handleViewDeploy(app)"
               >
                 查看作品

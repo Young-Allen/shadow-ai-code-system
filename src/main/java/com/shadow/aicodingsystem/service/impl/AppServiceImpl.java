@@ -69,6 +69,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         if (CollUtil.isEmpty(appList)) {
             return new ArrayList<>();
         }
+
         //批量获取用户信息，避免 N+1 查询问题
         Set<Long> userId = appList.stream()
                 .map(App::getUserId)
@@ -97,9 +98,25 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         String codeGenType = appQueryRequest.getCodeGenType();
         String deployKey = appQueryRequest.getDeployKey();
         Long userId = appQueryRequest.getUserId();
+        String userName = appQueryRequest.getUserName();
         Integer priority = appQueryRequest.getPriority();
         String sortField = appQueryRequest.getSortField();
         String sortOrder = appQueryRequest.getSortOrder();
+
+        // ① 先根据 userName 模糊查询出 userIds
+        List<Long> userIdList = null;
+        if (StrUtil.isNotBlank(userName)) {
+            userIdList = userService.list(
+                    QueryWrapper.create().select("id").from("user")
+                            .like("userName", userName)
+            ).stream().map(User::getId).toList();
+
+            // 如果用户昵称有条件，但一个都没匹配到，则直接让 app 查询返回空
+            if (userIdList.isEmpty()) {
+                // 返回一个永远不成立的条件
+                return QueryWrapper.create().eq("id", -1);
+            }
+        }
 
         QueryWrapper queryWrapper = QueryWrapper.create()
                 // 精确匹配
@@ -114,6 +131,10 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
                 .eq("codeGenType", codeGenType,  StrUtil.isNotBlank(codeGenType))
                 .eq("deployKey", deployKey, StrUtil.isNotBlank(deployKey));
 
+        // ③ 如果 userName 条件存在，就用 userId in (...) 过滤
+        if (userIdList != null) {
+            queryWrapper.in(App::getUserId, userIdList);
+        }
 
         // 排序：如果有排序字段，则按排序字段排序，否则按优先级降序、创建时间降序
         if (StrUtil.isNotBlank(sortField)) {

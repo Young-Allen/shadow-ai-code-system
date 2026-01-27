@@ -812,6 +812,8 @@ onMounted(() => {
   flex-direction: column;
   height: calc(100vh - 64px);
   background: #f5f5f5;
+  overflow: hidden;
+  position: relative;
 }
 
 .top-bar {
@@ -853,6 +855,7 @@ onMounted(() => {
   display: flex;
   flex: 1;
   overflow: hidden;
+  min-height: 0;
 }
 
 .chat-panel {
@@ -861,6 +864,8 @@ onMounted(() => {
   flex-direction: column;
   background: #fff;
   border-right: 1px solid #e8e8e8;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .chat-header {
@@ -877,7 +882,9 @@ onMounted(() => {
 .messages-container {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 24px;
+  min-height: 0;
 }
 
 .message-item {
@@ -1138,6 +1145,7 @@ onMounted(() => {
   padding: 16px 24px;
   border-top: 1px solid #e8e8e8;
   background: #fafafa;
+  flex-shrink: 0;
 }
 
 .message-input {
@@ -1179,6 +1187,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   background: #fff;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .preview-header {

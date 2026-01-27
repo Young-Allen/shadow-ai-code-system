@@ -28,6 +28,14 @@
           style="width: 200px"
         />
       </a-form-item>
+      <a-form-item label="用户姓名">
+        <a-input
+          v-model:value="searchForm.userName"
+          placeholder="请输入用户姓名"
+          allow-clear
+          style="width: 200px"
+        />
+      </a-form-item>
       <a-form-item>
         <a-button type="primary" @click="handleSearch" :loading="loading">
           <template #icon>
@@ -191,10 +199,12 @@ const searchForm = reactive<{
   appName?: string
   codeGenType?: string
   userId?: number
+  userName?: string
 }>({
   appName: '',
   codeGenType: undefined,
   userId: undefined,
+  userName: '',
 })
 
 // 分页配置
@@ -227,6 +237,9 @@ const fetchAppList = async () => {
     if (searchForm.userId) {
       queryParams.userId = searchForm.userId
     }
+    if (searchForm.userName) {
+      ;(queryParams as any).userName = searchForm.userName
+    }
 
     const res = await listAppVoByPageByAdmin(queryParams)
     if (res.data.code === 0 && res.data.data) {
@@ -258,6 +271,7 @@ const handleReset = () => {
   searchForm.appName = ''
   searchForm.codeGenType = undefined
   searchForm.userId = undefined
+  searchForm.userName = ''
   pagination.current = 1
   fetchAppList()
 }
