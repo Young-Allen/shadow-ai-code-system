@@ -151,6 +151,13 @@ public class AiCodeGeneratorFacade {
                 });
     }
 
+    /**
+     * 处理代码流，生成代码并保存
+     * @param codeStream
+     * @param codeGenType
+     * @param appId
+     * @return
+     */
     private Flux<String> processCodeStream(Flux<String> codeStream, CodeGenTypeEnum codeGenType, Long appId) {
         StringBuilder codeBuilder = new StringBuilder();
         return codeStream.doOnNext(chunk -> {
