@@ -3,7 +3,6 @@ package com.shadow.aicodingsystem.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.io.FileUtil;
-import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import com.mybatisflex.core.query.QueryWrapper;
@@ -22,11 +21,16 @@ import com.shadow.aicodingsystem.model.dto.app.AppQueryRequest;
 import com.shadow.aicodingsystem.model.entity.App;
 import com.shadow.aicodingsystem.model.vo.AppVO;
 import com.shadow.aicodingsystem.service.AppService;
+import com.shadow.aicodingsystem.service.ChatHistoryService;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
+import com.shadow.aicodingsystem.model.enums.MessageTypeEnum;
 
 import java.io.File;
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,12 +44,16 @@ import java.util.stream.Collectors;
  * @author shadow
  */
 @Service
+@Slf4j
 public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppService {
     @Resource
     private UserService userService;
 
     @Resource
     private AiCodeGeneratorFacade aiCodeGeneratorFacade;
+
+    @Resource
+    private ChatHistoryService chatHistoryService;
 
     @Override
     public AppVO getAppVO(App app) {
@@ -159,14 +167,30 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         if(!app.getUserId().equals(loginuser.getId())){
             ThrowUtils.throwIf(true, ErrorCode.PARAMS_ERROR, "没有权限访问该应用");
         }
-        //4. 获取应用的代码生成类型
+        //4. 记录用户输入
+        chatHistoryService.addChatMessage(appId, message, MessageTypeEnum.USER.getValue(), loginuser.getId());
+        //5. 获取应用的代码生成类型
         String codeGenType = app.getCodeGenType();
         CodeGenTypeEnum codeGenTypeEnum =  CodeGenTypeEnum.getEnumByValue(codeGenType);
         if(codeGenTypeEnum == null){
             throw  new BusinessException(ErrorCode.SYSTEM_ERROR, "不支持的代码生成类型");
         }
-        //5. 调用 AI 生成代码
-        return aiCodeGeneratorFacade.generateAndSaveCodeStream(message, codeGenTypeEnum, appId);
+        //6. 调用 AI 生成代码
+        StringBuilder aiContentBuilder = new StringBuilder();
+        return aiCodeGeneratorFacade.generateAndSaveCodeStream(message, codeGenTypeEnum, appId)
+                .doOnNext(aiContentBuilder::append)
+                .doOnComplete(() -> {
+                    String aiContent = aiContentBuilder.toString();
+                    if(StrUtil.isNotBlank(aiContent)){
+                        chatHistoryService.addChatMessage(appId, aiContent, MessageTypeEnum.AI.getValue(), loginuser.getId());
+                    }
+                })
+                .doOnError(e -> {
+                    String errorMessage = "AI 回复失败: " + e.getMessage();
+                    if(StrUtil.isNotBlank(errorMessage)){
+                        chatHistoryService.addChatMessage(appId, errorMessage, MessageTypeEnum.AI_ERROR.getValue(), loginuser.getId());
+                    }
+                });
     }
 
     @Override
@@ -213,5 +237,23 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
         //8. 返回部署url
         return String.format("%s/%s/", AppConstant.CODE_DEPLOY_HOST, deployKey);
+    }
+    
+
+    @Override
+    public boolean removeById(Serializable id) {
+        if(id == null){
+            return false;
+        }
+        Long appId = Long.valueOf(id.toString());
+        if(appId < 0){
+            return false;
+        }
+        try{
+            chatHistoryService.removeByAppId(appId);
+        }catch(Exception e){
+            log.error("删除应用关联对话历史失败: {}", e.getMessage());
+        }
+        return super.removeById(appId);
     }
 }
