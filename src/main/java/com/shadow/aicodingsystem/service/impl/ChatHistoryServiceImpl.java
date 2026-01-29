@@ -18,7 +18,11 @@ import com.shadow.aicodingsystem.model.enums.MessageTypeEnum;
 import com.shadow.aicodingsystem.model.vo.ChatHistoryVO;
 import com.shadow.aicodingsystem.service.AppService;
 import com.shadow.aicodingsystem.service.ChatHistoryService;
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +36,7 @@ import java.util.List;
  * @author shadow
  */
 @Service
+@Slf4j
 public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatHistory> implements ChatHistoryService {
 
     @Resource
@@ -44,7 +49,6 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
      * @param message 聊天消息内容，不能为空
      * @param messageType 消息类型，不能为空且必须是合法的消息类型
      * @param userId 用户ID，必须大于0
-     * @throws ErrorCode.PARAMS_ERROR 当任何参数不符合要求时抛出异常
      */
     @Override
     public void addChatMessage(Long appId, String message, String messageType, Long userId) {
@@ -174,7 +178,6 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
     // 校验每页记录数参数合法性，限制在1-50之间
         ThrowUtils.throwIf(pageSize <= 0 || pageSize > 50, ErrorCode.PARAMS_ERROR, "页面大小必须在0-50之间");
         ThrowUtils.throwIf(loginUser == null, ErrorCode.NOT_LOGIN_ERROR);
-        ThrowUtils.throwIf(lastCreateTime == null, ErrorCode.PARAMS_ERROR, "最后创建时间不能为空");
     // 获取应用信息
         App app = appService.getById(appId);
     // 校验应用是否存在
@@ -190,5 +193,53 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
 
         return this.page(Page.of(1, pageSize), queryWrapper)
                 .map(this::getChatHistoryVO);
+    }
+
+    /**
+     * 加载聊天历史到内存中的方法
+     * @param appId 应用ID
+     * @param chatMemory 聊天记忆窗口对象
+     * @param maxCount 最大加载数量
+     * @return 实际加载的消息数量
+     */
+    @Override
+    public int loadChatHistoryToMemory(Long appId, MessageWindowChatMemory chatMemory, int maxCount){
+        try{
+            // 直接构造查询条件，起始点为1而不是0，用于排除最新的用户消息
+            QueryWrapper queryWrapper = QueryWrapper.create()
+                    .eq(ChatHistory::getAppId, appId)  // 设置应用ID条件
+                    .orderBy(ChatHistory::getCreateTime, false)      // 按创建时间降序排列
+                    .limit(1, maxCount);               // 设置查询范围
+
+            // 执行查询获取聊天历史列表
+            List<ChatHistory> historyList = this.list(queryWrapper);
+            // 如果列表为空，直接返回0
+            if(CollUtil.isEmpty(historyList)){
+                return 0;
+            }
+            // 逆序添加到内存，使消息按时间正序排列
+            historyList = historyList.reversed();
+            // 按时间顺序添加到记忆中
+            int loadedCount = 0;  // 记录成功加载的消息数量
+            chatMemory.clear();    // 清空现有聊天记忆
+            // 遍历历史消息列表
+            for(ChatHistory history : historyList){
+                // 判断消息类型并添加到记忆中
+                if(MessageTypeEnum.USER.getValue().equals(history.getMessageType())) {
+                    chatMemory.add(UserMessage.from(history.getMessage()));  // 添加用户消息
+                    loadedCount++;
+                }else if(MessageTypeEnum.AI.getValue().equals(history.getMessageType())){
+                    chatMemory.add(AiMessage.from(history.getMessage()));    // 添加AI回复消息
+                    loadedCount++;
+                }
+            }
+            // 记录加载成功的日志
+            log.info("加载历史对话成功，appId：{}, loadedCount: {}", appId, loadedCount);
+            return loadedCount;
+        }catch (Exception e){
+            // 记录加载失败的日志
+            log.error("加载历史对话失败，appId：{}, error: {}", appId, e.getMessage());
+            return 0;
+        }
     }
 }

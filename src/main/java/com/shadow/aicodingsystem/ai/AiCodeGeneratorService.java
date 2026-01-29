@@ -2,7 +2,9 @@ package com.shadow.aicodingsystem.ai;
 
 import com.shadow.aicodingsystem.ai.model.HtmlCodeResult;
 import com.shadow.aicodingsystem.ai.model.MultiFileCodeResult;
+import dev.langchain4j.service.MemoryId;
 import dev.langchain4j.service.SystemMessage;
+import dev.langchain4j.service.UserMessage;
 import reactor.core.publisher.Flux;
 
 public interface AiCodeGeneratorService {
@@ -15,7 +17,7 @@ public interface AiCodeGeneratorService {
      * @return 生成的HTML代码字符串
      */
     @SystemMessage(fromResource = "prompt/codegen-html-system-prompt.txt")
-    HtmlCodeResult generateHtmlCode(String userMessage);
+    HtmlCodeResult generateHtmlCode(@MemoryId long memoryId, @UserMessage String userMessage);
 
 
     /**

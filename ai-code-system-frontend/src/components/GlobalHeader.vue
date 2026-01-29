@@ -53,7 +53,14 @@
 import { ref, computed, watch, onMounted, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { MenuProps } from 'ant-design-vue'
-import { LogoutOutlined, HomeOutlined, TeamOutlined, UserOutlined, AppstoreOutlined } from '@ant-design/icons-vue'
+import {
+  LogoutOutlined,
+  HomeOutlined,
+  TeamOutlined,
+  UserOutlined,
+  AppstoreOutlined,
+  MessageOutlined,
+} from '@ant-design/icons-vue'
 import { useLoginUserStore } from '@/stores/loginUser'
 import { userLogout } from '@/api/userController'
 import { message } from 'ant-design-vue'
@@ -92,6 +99,7 @@ const iconMap: Record<string, any> = {
   home: HomeOutlined,
   userManage: TeamOutlined,
   appManage: AppstoreOutlined,
+  chatHistoryManage: MessageOutlined,
 }
 
 // 将 menuItems 转换为 Ant Design Vue Menu 需要的格式
