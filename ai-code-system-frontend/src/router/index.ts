@@ -56,6 +56,14 @@ const router = createRouter({
       },
     },
     {
+      path: '/admin/chatHistoryManage',
+      name: '对话管理',
+      component: () => import('../pages/admin/ChatHistoryManagerPage.vue'),
+      meta: {
+        access: ACCESS_ENUM.ADMIN, // 管理员
+      },
+    },
+    {
       path: '/app/chat/:id',
       name: '应用对话',
       component: () => import('../pages/app/AppChatPage.vue'),

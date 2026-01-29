@@ -7,6 +7,7 @@ import com.shadow.aicodingsystem.model.dto.chathistory.ChatHistoryQueryRequest;
 import com.shadow.aicodingsystem.model.entity.ChatHistory;
 import com.shadow.aicodingsystem.model.entity.User;
 import com.shadow.aicodingsystem.model.vo.ChatHistoryVO;
+import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 
 import java.time.LocalDateTime;
 
@@ -67,4 +68,14 @@ public interface ChatHistoryService extends IService<ChatHistory> {
      * @return 返回一个包含聊天历史记录视图对象(Page<ChatHistoryVO>)的分页结果，其中ChatHistoryVO可能包含聊天记录的相关信息
      */
     Page<ChatHistoryVO> listAppChatHistoryByPage(Long appId, int pageSize, LocalDateTime lastCreateTime, User loginUser);
+
+    /**
+     * 将聊天历史记录加载到内存中的方法
+     *
+     * @param appId 应用程序ID，用于标识特定的应用程序实例
+     * @param chatMemory 聊天内存窗口对象，用于存储加载的聊天历史记录
+     * @param maxCount 最大加载记录数，限制加载的历史记录数量
+     * @return 返回实际加载的记录数量，可能小于等于maxCount
+     */
+    int loadChatHistoryToMemory(Long appId, MessageWindowChatMemory chatMemory, int maxCount);
 }
