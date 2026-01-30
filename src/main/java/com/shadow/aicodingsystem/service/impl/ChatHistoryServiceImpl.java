@@ -98,11 +98,11 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
         String sortOrder = chatHistoryQueryRequest.getSortOrder();
 
     // 设置查询条件：精确匹配ID、应用ID、用户ID、消息类型；模糊匹配消息内容
-        queryWrapper.eq(ChatHistory::getId, id)
-                .eq(ChatHistory::getAppId, appId)
-                .eq(ChatHistory::getUserId, userId)
-                .eq(ChatHistory::getMessageType, messageType)
-                .like(ChatHistory::getMessage, message);
+        queryWrapper.eq(ChatHistory::getId, id, id != null)
+                .eq(ChatHistory::getAppId, appId, appId != null)
+                .eq(ChatHistory::getUserId, userId, userId != null)
+                .eq(ChatHistory::getMessageType, messageType, StrUtil.isNotBlank(messageType))
+                .like(ChatHistory::getMessage, message, StrUtil.isNotBlank(message));
 
         // 按创建时间倒序，默认获取最新消息
         if (StrUtil.isNotBlank(sortField)) {

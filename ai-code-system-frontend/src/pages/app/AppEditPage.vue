@@ -65,6 +65,7 @@ import { message } from 'ant-design-vue'
 import { getAppVoById, getAppById, updateApp, updateAppByAdmin } from '@/api/appController'
 import { useLoginUserStore } from '@/stores/loginUser'
 import ACCESS_ENUM from '@/access/accessEnum'
+import { handleImageError } from '@/utils/image'
 
 const route = useRoute()
 const router = useRouter()
@@ -202,13 +203,6 @@ const handleCancel = () => {
   router.back()
 }
 
-/**
- * 处理图片加载错误
- */
-const handleImageError = (event: Event) => {
-  const img = event.target as HTMLImageElement
-  img.style.display = 'none'
-}
 
 // 组件挂载时初始化
 onMounted(() => {

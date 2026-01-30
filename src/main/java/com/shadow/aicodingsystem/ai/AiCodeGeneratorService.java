@@ -17,7 +17,7 @@ public interface AiCodeGeneratorService {
      * @return 生成的HTML代码字符串
      */
     @SystemMessage(fromResource = "prompt/codegen-html-system-prompt.txt")
-    HtmlCodeResult generateHtmlCode(@MemoryId long memoryId, @UserMessage String userMessage);
+    HtmlCodeResult generateHtmlCode(@UserMessage String userMessage);
 
 
     /**
@@ -40,6 +40,7 @@ public interface AiCodeGeneratorService {
      */
     @SystemMessage(fromResource = "prompt/codegen-html-system-prompt.txt")
     Flux<String> generateHtmlCodeStream(String userMessage);
+
 
     /**
      * 使用系统消息生成多文件代码流

@@ -66,7 +66,7 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { useLoginUserStore } from '@/stores/loginUser'
 import { updateUser } from '@/api/userController'
-import hamburgerImg from '@/assets/hamburger.png'
+import { handleAvatarError, DEFAULT_AVATAR } from '@/utils/image'
 
 const router = useRouter()
 const loginUserStore = useLoginUserStore()
@@ -143,13 +143,6 @@ const handleCancel = () => {
   router.back()
 }
 
-/**
- * 处理头像加载错误
- */
-const handleAvatarError = (event: Event) => {
-  const img = event.target as HTMLImageElement
-  img.src = hamburgerImg
-}
 
 // 组件挂载时初始化表单
 onMounted(() => {

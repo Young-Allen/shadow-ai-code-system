@@ -64,7 +64,7 @@ import {
 import { useLoginUserStore } from '@/stores/loginUser'
 import { userLogout } from '@/api/userController'
 import { message } from 'ant-design-vue'
-import hamburgerImg from '@/assets/hamburger.png'
+import { handleAvatarError, DEFAULT_AVATAR } from '@/utils/image'
 
 const loginUserStore = useLoginUserStore()
 
@@ -82,7 +82,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   logoPath: '/logo.png',
-  siteTitle: 'ShadowW ZeroCode',
+  siteTitle: 'ZeroCode',
   menuItems: () => [
     { key: 'home', label: '首页', path: '/' },
     { key: 'userManage', label: '用户管理', path: '/admin/userManage' },
@@ -142,14 +142,8 @@ const isLoggedIn = computed(() => {
 // 获取用户头像，如果为 null 则使用默认图片
 const userAvatar = computed(() => {
   const avatar = loginUserStore.loginUser.userAvatar
-  return avatar || hamburgerImg
+  return avatar || DEFAULT_AVATAR
 })
-
-// 处理头像加载错误
-const handleAvatarError = (event: Event) => {
-  const img = event.target as HTMLImageElement
-  img.src = hamburgerImg
-}
 
 // 处理登录按钮点击
 const handleLogin = () => {

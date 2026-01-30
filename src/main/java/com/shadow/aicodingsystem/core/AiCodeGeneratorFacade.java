@@ -38,7 +38,7 @@ public class AiCodeGeneratorFacade {
 
         return switch (codeGenTypeEnum){
             case HTML -> {
-                HtmlCodeResult result = aiCodeGeneratorService.generateHtmlCode(appId, userMessage);
+                HtmlCodeResult result = aiCodeGeneratorService.generateHtmlCode(userMessage);
                 yield CodeFileSaverExecutor.executeSaver(result, CodeGenTypeEnum.HTML, appId);
             }
             case MULTI_FILE -> {

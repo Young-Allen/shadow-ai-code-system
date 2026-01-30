@@ -145,45 +145,16 @@
     </div>
 
     <!-- 应用详情弹窗 -->
-    <a-modal
+    <AppDetailModal
+      v-if="appInfo"
+      :app-info="appInfo"
+      :can-manage="canManage"
+      :deleting="deleting"
       v-model:open="detailModalOpen"
-      title="应用详情"
-      :footer="null"
-      :maskClosable="true"
-      destroyOnClose
-    >
-      <div class="app-detail">
-        <div class="app-detail-user">
-          <img
-            :src="appInfo?.user?.userAvatar || hamburgerImg"
-            alt="创建者头像"
-            class="app-detail-avatar"
-            @error="handleAvatarError"
-          />
-          <div class="app-detail-user-meta">
-            <div class="app-detail-user-name">{{ appInfo?.user?.userName || '匿名' }}</div>
-            <div class="app-detail-user-sub">创建者</div>
-          </div>
-        </div>
-
-        <div class="app-detail-row">
-          <span class="app-detail-label">应用名称：</span>
-          <span class="app-detail-value">{{ appInfo?.appName || '未命名应用' }}</span>
-        </div>
-        <div class="app-detail-row">
-          <span class="app-detail-label">创建时间：</span>
-          <span class="app-detail-value">{{ formatDate(appInfo?.createTime) }}</span>
-        </div>
-
-        <div class="app-detail-actions">
-          <a-button :disabled="!canManage" @click="handleEditApp">修改</a-button>
-          <a-button danger :disabled="!canManage" :loading="deleting" @click="handleDeleteApp">
-            删除
-          </a-button>
-        </div>
-        <div v-if="!canManage" class="app-detail-tip">仅创建者或管理员可修改 / 删除</div>
-      </div>
-    </a-modal>
+      @cancel="detailModalOpen = false"
+      @edit="handleEditApp"
+      @delete="handleDeleteApp"
+    />
   </div>
 </template>
 
@@ -210,6 +181,9 @@ import ACCESS_ENUM from '@/access/accessEnum'
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github-dark.css'
+import AppDetailModal from '@/components/AppDetailModal.vue'
+import { formatTime, formatDate } from '@/utils/format'
+import { handleAvatarError } from '@/utils/image'
 
 const route = useRoute()
 const router = useRouter()
@@ -684,10 +658,11 @@ const updatePreview = () => {
 
     // 使用nextTick确保DOM更新后再设置新URL
     nextTick(() => {
-      // 构建预览URL: http://localhost:8123/api/static/{codeGenType}_{appId}/
+      // 构建预览URL: {VITE_APP_PREVIEW_DOMAIN}/api/static/{codeGenType}_{appId}/
       // 添加时间戳参数强制刷新iframe，避免显示缓存内容
+      const previewDomain = import.meta.env.VITE_APP_PREVIEW_DOMAIN || 'http://localhost:8123'
       const timestamp = Date.now()
-      previewUrl.value = `http://localhost:8123/api/static/${codeGenType.value}_${appId.value}/?t=${timestamp}`
+      previewUrl.value = `${previewDomain}/api/static/${codeGenType.value}_${appId.value}/?t=${timestamp}`
     })
   }
 }
@@ -847,40 +822,6 @@ const formatMessage = (content: string) => {
     .replace(/`([^`]+)`/g, '<code>$1</code>')
 }
 
-/**
- * 格式化时间
- */
-const formatTime = (timestamp?: number) => {
-  if (!timestamp) return ''
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const hours = Math.floor(diff / (1000 * 60 * 60))
-  const days = Math.floor(hours / 24)
-  const weeks = Math.floor(days / 7)
-
-  if (weeks > 0) {
-    return `${weeks}周前`
-  } else if (days > 0) {
-    return `${days}天前`
-  } else if (hours > 0) {
-    return `${hours}小时前`
-  } else {
-    return '刚刚'
-  }
-}
-
-const formatDate = (dateStr?: string) => {
-  if (!dateStr) return '-'
-  const date = new Date(dateStr)
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
 
 /**
  * 滚动到底部
@@ -891,13 +832,6 @@ const scrollToBottom = () => {
   }
 }
 
-/**
- * 处理头像加载错误
- */
-const handleAvatarError = (event: Event) => {
-  const img = event.target as HTMLImageElement
-  img.src = hamburgerImg
-}
 
 // 组件挂载时初始化
 onMounted(() => {
@@ -919,7 +853,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
+  padding: 12px 16px;
   background: #fff;
   border-bottom: 1px solid #e8e8e8;
 }
@@ -927,13 +861,13 @@ onMounted(() => {
 .top-bar-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .top-bar-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .back-btn {
@@ -982,19 +916,19 @@ onMounted(() => {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 24px;
+  padding: 16px;
   min-height: 0;
 }
 
 .load-more-history {
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .message-item {
   display: flex;
-  margin-bottom: 24px;
-  gap: 12px;
+  margin-bottom: 16px;
+  gap: 10px;
 }
 
 .message-user {
@@ -1038,7 +972,7 @@ onMounted(() => {
 
 .message-content {
   max-width: 70%;
-  padding: 12px 16px;
+  padding: 10px 14px;
 }
 
 .message-text {
@@ -1066,8 +1000,8 @@ onMounted(() => {
 .markdown-body :deep(h4),
 .markdown-body :deep(h5),
 .markdown-body :deep(h6) {
-  margin-top: 16px;
-  margin-bottom: 8px;
+  margin-top: 12px;
+  margin-bottom: 6px;
   font-weight: 600;
   line-height: 1.25;
 }
@@ -1090,14 +1024,14 @@ onMounted(() => {
 
 .markdown-body :deep(p) {
   margin-top: 0;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .markdown-body :deep(ul),
 .markdown-body :deep(ol) {
   margin-top: 0;
-  margin-bottom: 10px;
-  padding-left: 24px;
+  margin-bottom: 8px;
+  padding-left: 20px;
 }
 
 .markdown-body :deep(li) {
@@ -1114,7 +1048,7 @@ onMounted(() => {
 .markdown-body :deep(table) {
   border-collapse: collapse;
   margin-top: 0;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   width: 100%;
 }
 
@@ -1146,14 +1080,14 @@ onMounted(() => {
 
 /* 代码块样式 */
 .markdown-body :deep(pre) {
-  padding: 16px;
+  padding: 12px;
   overflow: auto;
   font-size: 85%;
   line-height: 1.45;
   background-color: #f6f8fa;
   border-radius: 6px;
   margin-top: 0;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .markdown-body :deep(pre code) {
@@ -1190,11 +1124,11 @@ onMounted(() => {
 .markdown-body :deep(.hljs) {
   display: block;
   overflow-x: auto;
-  padding: 16px;
+  padding: 12px;
   background: #0d1117;
   color: #c9d1d9;
   border-radius: 6px;
-  margin: 8px 0;
+  margin: 6px 0;
 }
 
 .markdown-body :deep(.hljs code) {
@@ -1223,7 +1157,7 @@ onMounted(() => {
 }
 
 .message-meta {
-  margin-top: 8px;
+  margin-top: 6px;
   font-size: 12px;
   color: #999;
   display: flex;
@@ -1232,21 +1166,21 @@ onMounted(() => {
 }
 
 .optimize-section {
-  margin-top: 16px;
-  padding-top: 16px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid #e8e8e8;
 }
 
 .streaming-indicator {
   display: flex;
   align-items: center;
-  padding: 12px;
+  padding: 8px;
   color: #999;
   font-size: 14px;
 }
 
 .input-section {
-  padding: 16px 24px;
+  padding: 12px 16px;
   border-top: 1px solid #e8e8e8;
   background: #fafafa;
   flex-shrink: 0;
@@ -1268,12 +1202,12 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .input-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 
 .action-btn {
@@ -1325,70 +1259,6 @@ onMounted(() => {
   justify-content: center;
 }
 
-.app-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.app-detail-user {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: #fafafa;
-  border-radius: 8px;
-}
-
-.app-detail-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.app-detail-user-name {
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.app-detail-user-sub {
-  font-size: 12px;
-  color: #999;
-  margin-top: 2px;
-}
-
-.app-detail-row {
-  display: flex;
-  gap: 8px;
-  line-height: 22px;
-}
-
-.app-detail-label {
-  color: #666;
-  width: 80px;
-  flex-shrink: 0;
-}
-
-.app-detail-value {
-  color: rgba(0, 0, 0, 0.85);
-  flex: 1;
-  word-break: break-all;
-}
-
-.app-detail-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.app-detail-tip {
-  font-size: 12px;
-  color: #999;
-  text-align: right;
-}
 
 /* 响应式设计 */
 @media (max-width: 1024px) {
