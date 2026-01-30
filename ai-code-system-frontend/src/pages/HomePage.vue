@@ -9,7 +9,7 @@
           <span>呈所想</span>
         </h1>
       </div>
-      <p class="subtitle">与AI 对话轻松创建应用和网站</p>
+      <p class="subtitle">一句话轻松创建网站应用</p>
     </div>
 
     <!-- 用户提示词输入框 -->
@@ -79,52 +79,17 @@
       </div>
       <a-spin :spinning="myAppsLoading">
         <div class="app-grid" v-if="myAppsList.length > 0">
-          <div
+          <AppCard
             v-for="app in myAppsList"
             :key="app.id"
-            class="app-card"
-            @click="handleAppClick(app)"
-          >
-            <div class="app-cover">
-              <a-image
-                v-if="app.cover"
-                :src="app.cover"
-                :alt="app.appName"
-                :preview="false"
-                class="app-cover-image"
-                @error="handleImageError"
-              />
-              <a-image
-                v-else
-                :src="undefined"
-                :alt="app.appName"
-                :preview="false"
-                class="app-cover-image"
-              />
-            </div>
-            <div class="app-info">
-              <img
-                :src="loginUserStore.loginUser.userAvatar || defaultAvatar"
-                :alt="loginUserStore.loginUser.userName"
-                class="app-info-avatar"
-                @error="handleAvatarError"
-              />
-              <div class="app-info-right">
-                <h3 class="app-name">{{ app.appName || '未命名应用' }}</h3>
-                <p class="app-author-name">{{ loginUserStore.loginUser.userName || '匿名' }}</p>
-              </div>
-            </div>
-            <div class="app-card-actions" @click.stop>
-              <a-button  size="large" type="primary" @click.stop="handleViewChat(app)">查看对话</a-button>
-              <a-button
-                v-if="app.deployKey"
-                size="large"
-                @click.stop="handleViewDeploy(app)"
-              >
-                查看作品
-              </a-button>
-            </div>
-          </div>
+            :app="app"
+            :user-avatar="loginUserStore.loginUser.userAvatar"
+            :user-name="loginUserStore.loginUser.userName"
+            :show-user-avatar="true"
+            @click="handleAppClick"
+            @view-chat="handleViewChat"
+            @view-deploy="handleViewDeploy"
+          />
         </div>
         <a-empty v-else description="暂无应用" />
       </a-spin>
@@ -156,60 +121,14 @@
       </div>
       <a-spin :spinning="featuredAppsLoading">
         <div class="app-grid" v-if="featuredAppsList.length > 0">
-          <div
+          <AppCard
             v-for="app in featuredAppsList"
             :key="app.id"
-            class="app-card"
-            @click="handleAppClick(app)"
-          >
-            <div class="app-cover">
-              <a-image
-                v-if="app.cover"
-                :src="app.cover"
-                :alt="app.appName"
-                :preview="false"
-                class="app-cover-image"
-                @error="handleImageError"
-              />
-              <a-image
-                v-else
-                :src="undefined"
-                :alt="app.appName"
-                :preview="false"
-                class="app-cover-image"
-              />
-            </div>
-            <div class="app-info">
-              <img
-                v-if="app.user"
-                :src="app.user.userAvatar || defaultAvatar"
-                :alt="app.user.userName"
-                class="app-info-avatar"
-                @error="handleAvatarError"
-              />
-              <img
-                v-else
-                :src="defaultAvatar"
-                alt="匿名"
-                class="app-info-avatar"
-                @error="handleAvatarError"
-              />
-              <div class="app-info-right">
-                <h3 class="app-name">{{ app.appName || '未命名应用' }}</h3>
-                <p class="app-author-name">{{ app.user?.userName || '匿名' }}</p>
-              </div>
-            </div>
-            <div class="app-card-actions" @click.stop>
-              <a-button size="large" type="primary" @click.stop="handleViewChat(app)">查看对话</a-button>
-              <a-button
-                v-if="app.deployKey"
-                size="large"
-                @click.stop="handleViewDeploy(app)"
-              >
-                查看作品
-              </a-button>
-            </div>
-          </div>
+            :app="app"
+            @click="handleAppClick"
+            @view-chat="handleViewChat"
+            @view-deploy="handleViewDeploy"
+          />
         </div>
         <a-empty v-else description="暂无精选应用" />
       </a-spin>
@@ -231,7 +150,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { message, Image } from 'ant-design-vue'
+import { message } from 'ant-design-vue'
 import {
   PaperClipOutlined,
   ThunderboltOutlined,
@@ -239,13 +158,10 @@ import {
 } from '@ant-design/icons-vue'
 import { addApp, listMyAppVoByPage, listFeaturedAppVoByPage } from '@/api/appController'
 import { useLoginUserStore } from '@/stores/loginUser'
-import hamburgerImg from '@/assets/hamburger.png'
+import AppCard from '@/components/AppCard.vue'
 
 const router = useRouter()
 const loginUserStore = useLoginUserStore()
-
-//默认封面图
-const undefined = 'https://cube.elemecdn.com/6/94/4d3ea53c084bad6931a56d5158a48jpeg.jpeg'
 
 // 用户提示词
 const userPrompt = ref('')
@@ -278,8 +194,6 @@ const featuredAppsPage = ref(1)
 const featuredAppsPageSize = ref(12)
 const featuredAppsTotal = ref(0)
 const featuredAppsSearchName = ref('')
-
-const defaultAvatar = hamburgerImg
 
 // 是否已登录
 const isLoggedIn = computed(() => {
@@ -411,49 +325,7 @@ const handleViewChat = (app: API.AppVO) => {
 }
 
 const handleViewDeploy = (app: API.AppVO) => {
-  if (!app.deployKey) return
-  const deployKey = String(app.deployKey || '').replace(/^\//, '')
-  const deployUrl = `http://localhost/${deployKey}`
-  window.open(deployUrl, '_blank')
-}
-
-/**
- * 格式化时间
- */
-const formatTime = (timeStr?: string) => {
-  if (!timeStr) return ''
-  const date = new Date(timeStr)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const hours = Math.floor(diff / (1000 * 60 * 60))
-  const days = Math.floor(hours / 24)
-  const weeks = Math.floor(days / 7)
-
-  if (weeks > 0) {
-    return `创建于${weeks}周前`
-  } else if (days > 0) {
-    return `创建于${days}天前`
-  } else if (hours > 0) {
-    return `创建于${hours}小时前`
-  } else {
-    return '刚刚创建'
-  }
-}
-
-/**
- * 处理图片加载错误
- */
-const handleImageError = (event: Event) => {
-  const img = event.target as HTMLImageElement
-  img.style.display = 'none'
-}
-
-/**
- * 处理头像加载错误
- */
-const handleAvatarError = (event: Event) => {
-  const img = event.target as HTMLImageElement
-  img.src = defaultAvatar
+  // 这个功能已经在 AppCard 组件中实现了
 }
 
 /**
@@ -648,110 +520,6 @@ onMounted(() => {
   margin-bottom: 24px;
 }
 
-.app-card {
-  background: #fff;
-  border-radius: 12px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  position: relative;
-}
-
-.app-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
-.app-card-actions {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  background: rgba(0, 0, 0, 0.45);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-  z-index: 2;
-}
-
-.app-card:hover .app-card-actions {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.app-cover {
-  width: 100%;
-  height: 200px;
-  background: #f5f5f5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.app-cover-image {
-  width: 100%;
-  height: 100%;
-}
-
-.app-cover-image :deep(.ant-image-img) {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.app-cover-image :deep(.ant-image) {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.app-info {
-  padding: 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.app-info-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.app-info-right {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.app-name {
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0;
-  color: #1a1a1a;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.app-author-name {
-  font-size: 12px;
-  color: #666;
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .pagination-wrapper {
   display: flex;
@@ -780,10 +548,6 @@ onMounted(() => {
   .app-grid {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 16px;
-  }
-
-  .app-cover {
-    height: 120px;
   }
 
   .section-header {

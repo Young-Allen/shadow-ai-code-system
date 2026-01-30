@@ -29,14 +29,16 @@
         <a-button style="margin-left: 8px" @click="handleReset">重置</a-button>
       </a-form-item>
     </a-form>
-    <a-table
-      :columns="columns"
-      :data-source="userList"
-      :loading="loading"
-      :pagination="pagination"
-      row-key="id"
-      @change="handleTableChange"
-    >
+    <div class="table-container">
+      <a-table
+        :columns="columns"
+        :data-source="userList"
+        :loading="loading"
+        :pagination="pagination"
+        :scroll="{ y: 'calc(100vh - 320px)', x: 'max-content' }"
+        row-key="id"
+        @change="handleTableChange"
+      >
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'userAvatar'">
           <img
@@ -68,7 +70,8 @@
           </a-button>
         </template>
       </template>
-    </a-table>
+      </a-table>
+    </div>
   </div>
 </template>
 
@@ -77,7 +80,8 @@ import { ref, reactive, onMounted } from 'vue'
 import { listUserVoByPage, deleteUser } from '@/api/userController'
 import { message, Modal } from 'ant-design-vue'
 import { SearchOutlined } from '@ant-design/icons-vue'
-import hamburgerImg from '@/assets/hamburger.png'
+import { formatDate } from '@/utils/format'
+import { handleAvatarError, DEFAULT_AVATAR } from '@/utils/image'
 
 // 表格列定义
 const columns = [
@@ -137,7 +141,7 @@ const columns = [
 const userList = ref<API.UserVO[]>([])
 const loading = ref(false)
 const deletingIds = ref<number[]>([])
-const defaultAvatar = hamburgerImg
+const defaultAvatar = DEFAULT_AVATAR
 
 // 搜索表单
 const searchForm = reactive<{
@@ -268,28 +272,6 @@ const getRoleColor = (role?: string) => {
   return roleColors[role || ''] || 'default'
 }
 
-/**
- * 格式化日期
- */
-const formatDate = (dateStr?: string) => {
-  if (!dateStr) return '-'
-  const date = new Date(dateStr)
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-/**
- * 处理头像加载错误
- */
-const handleAvatarError = (event: Event) => {
-  const img = event.target as HTMLImageElement
-  img.src = defaultAvatar
-}
 
 // 组件挂载时获取用户列表
 onMounted(() => {
@@ -299,21 +281,33 @@ onMounted(() => {
 
 <style scoped>
 .user-manager-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 64px);
   padding: 24px;
   background: #fff;
+  overflow: hidden;
 }
 
 .page-title {
+  flex-shrink: 0;
   margin-bottom: 24px;
   font-size: 20px;
   font-weight: 600;
 }
 
 .search-form {
+  flex-shrink: 0;
   margin-bottom: 24px;
   padding: 16px;
   background: #fafafa;
   border-radius: 4px;
+}
+
+.table-container {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .user-avatar-img {
@@ -327,6 +321,7 @@ onMounted(() => {
 @media (max-width: 768px) {
   .user-manager-page {
     padding: 16px;
+    height: calc(100vh - 64px);
   }
 
   .page-title {
