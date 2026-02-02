@@ -5,6 +5,7 @@ import com.shadow.aicodingsystem.ai.model.MultiFileCodeResult;
 import dev.langchain4j.service.MemoryId;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
+import dev.langchain4j.service.TokenStream;
 import reactor.core.publisher.Flux;
 
 public interface AiCodeGeneratorService {
@@ -58,9 +59,8 @@ public interface AiCodeGeneratorService {
      *
      * @param userMessage 用户输入的消息，将用于生成相应的 Vue 项目代码
      * @param appId       应用程序 ID，用于生成基于 appId 的项目目录
-     * @return 返回一个 Flux<String> 类型的响应
-     * 流，包含逐步生成的 Vue 项目代码内容
+     * @return 返回一个 Flux<String> 类型的响应流，包含逐步生成的 Vue 项目代码内容
      */
     @SystemMessage(fromResource = "prompt/codegen-vue-project-system-prompt.txt")
-    Flux<String> generateVueProjectCodeStream(@MemoryId long appId, @UserMessage String userMessage);
+    TokenStream generateVueProjectCodeStream(@MemoryId long appId, @UserMessage String userMessage);
 }

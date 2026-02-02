@@ -321,7 +321,7 @@ const handleAppClick = (app: API.AppVO) => {
 
 const handleViewChat = (app: API.AppVO) => {
   if (!app.id) return
-  router.push({ path: `/app/chat/${String(app.id)}`, query: { view: '1' } })
+  router.push({ path: `/app/chat/${String(app.id)}`})
 }
 
 const handleViewDeploy = (app: API.AppVO) => {

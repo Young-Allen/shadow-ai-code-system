@@ -7,5 +7,9 @@ export const CODE_GEN_TYPE_OPTIONS = [
     label: '原生多文件模式',
     value: 'multi_file',
   },
+  {
+    label: 'Vue 项目',
+    value: 'vue_project',
+  },
 ] as const
 
