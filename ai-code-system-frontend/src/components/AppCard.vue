@@ -94,7 +94,9 @@ const handleViewDeploy = () => {
   if (!props.app.deployKey) return
   const deployKey = String(props.app.deployKey || '').replace(/^\//, '')
   const deployDomain = import.meta.env.VITE_APP_DEPLOY_DOMAIN || 'http://localhost'
-  const deployUrl = `${deployDomain}/${deployKey}`
+  // 如果是vue项目，需要在URL后面添加 /dist 后缀
+  const distSuffix = props.app.codeGenType === 'vue_project' ? '/dist' : ''
+  const deployUrl = `${deployDomain}/${deployKey}${distSuffix}`
   window.open(deployUrl, '_blank')
   emit('viewDeploy', props.app)
 }

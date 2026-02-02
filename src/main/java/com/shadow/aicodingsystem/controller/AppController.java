@@ -66,7 +66,8 @@ public class AppController {
         BeanUtil.copyProperties(appAddRequest, app);
         app.setUserId(loginUser.getId());
         app.setAppName(initPrompt.substring(0, Math.min(initPrompt.length(), 12)) + "...");
-        app.setCodeGenType(CodeGenTypeEnum.MULTI_FILE.getValue());
+        app.setCodeGenType(CodeGenTypeEnum.VUE_PROJECT.getValue());
+//        app.setCodeGenType(CodeGenTypeEnum.MULTI_FILE.getValue());
         //插入数据库
         boolean result = appService.save(app);
         ThrowUtils.throwIf(!result, ErrorCode.SYSTEM_ERROR);

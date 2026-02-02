@@ -100,7 +100,7 @@ public class AiCodeGeneratorServiceFactory {
     public AiCodeGeneratorService createAiCodeGeneratorService(long appId, CodeGenTypeEnum codeGenType) {
     // 记录创建服务实例的日志，包含appId信息
         log.info("创建新的 AI 服务实例, appId：{}", appId);
-        // 构建一个基于Redis的聊天记忆窗口，用于存储对话上下文
+        // 构建一个基于Redis的聊天记忆窗口，用于存储对话上下文(这个appId是记忆标识)
         MessageWindowChatMemory chatMemory = MessageWindowChatMemory
                 .builder()
                 .id(appId)                    // 设置应用ID作为记忆标识
@@ -114,10 +114,13 @@ public class AiCodeGeneratorServiceFactory {
             //Vue 项目生成使用推理模型
             case VUE_PROJECT -> AiServices.builder(AiCodeGeneratorService.class)
                     .streamingChatModel(reasoningStreamingChatModel)  // 设置流式聊天模型
-                    .chatMemoryProvider(memoryId -> chatMemory) //调用generateVueProjectCodeStream的时候会带上appId
+                    //调用generateVueProjectCodeStream的时候会带上appId，就是当前memoryId使用对应的chatMemory
+                    .chatMemoryProvider(memoryId -> chatMemory)
                     .tools(new FileWriteTool())  // 添加文件写入工具
+                    //幻觉工具名称策略，配置了找不到工具时的处理策略,出现幻觉工具调用时不会直接报错
+                    // 使用 ToolExecutionResultMessage.from(...) 伪造一条“工具执行结果消息”
                     .hallucinatedToolNameStrategy(toolExecutionRequest -> ToolExecutionResultMessage.from(
-                            toolExecutionRequest, "Error: Unable to execute tool: " + toolExecutionRequest.name()
+                            toolExecutionRequest, "Error: there is no tool called " + toolExecutionRequest.name()
                     ))
                     .build();
             // 使用建造者模式创建并配置AI服务实例

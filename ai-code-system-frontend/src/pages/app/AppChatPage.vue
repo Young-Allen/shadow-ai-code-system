@@ -17,6 +17,12 @@
           </template>
           应用详情
         </a-button>
+        <a-button  v-if="canManage" type="dashed" :disabled="!previewPageUrl" @click="handleOpenPreviewPage">
+          <template #icon>
+            <EyeOutlined />
+          </template>
+          应用预览
+        </a-button>
         <a-button v-if="canManage" type="primary" :loading="deploying" @click="handleDeploy">
           <template #icon>
             <CloudUploadOutlined />
@@ -171,6 +177,7 @@ import {
   CloudUploadOutlined,
   RobotOutlined,
   InfoCircleOutlined,
+  EyeOutlined,
 } from '@ant-design/icons-vue'
 import { deleteApp, deleteAppByAdmin, deployApp, getAppVoById } from '@/api/appController'
 import { listAppChatHistory } from '@/api/chatHistoryController'
@@ -236,6 +243,26 @@ const inputTooltip = computed(() =>
 // 预览
 const previewUrl = ref('')
 const codeGenType = ref('')
+
+// 顶部“应用预览”按钮用（不带时间戳，保持地址稳定）
+const previewPageUrl = computed(() => {
+  if (!codeGenType.value || !appId.value) return ''
+  const previewDomain = import.meta.env.VITE_APP_PREVIEW_DOMAIN || 'http://localhost:8123'
+  let basePath = `${previewDomain}/api/static/${codeGenType.value}_${appId.value}`
+  if (codeGenType.value === 'vue_project') {
+    // Vue 项目预览入口在 dist 下
+    basePath += '/dist/index.html'
+  }
+  return basePath
+})
+
+const handleOpenPreviewPage = () => {
+  if (!previewPageUrl.value) {
+    message.warning('预览链接未生成，请先生成代码')
+    return
+  }
+  window.open(previewPageUrl.value, '_blank')
+}
 
 // 部署
 const deploying = ref(false)
@@ -662,7 +689,13 @@ const updatePreview = () => {
       // 添加时间戳参数强制刷新iframe，避免显示缓存内容
       const previewDomain = import.meta.env.VITE_APP_PREVIEW_DOMAIN || 'http://localhost:8123'
       const timestamp = Date.now()
-      previewUrl.value = `${previewDomain}/api/static/${codeGenType.value}_${appId.value}/?t=${timestamp}`
+      // 如果是vue项目，需要在URL后面添加 /dist/index.html
+      let basePath = `${previewDomain}/api/static/${codeGenType.value}_${appId.value}`
+      if (codeGenType.value === 'vue_project') {
+        basePath += '/dist/index.html'
+      }
+      previewUrl.value = `${basePath}?t=${timestamp}`
+      console.log('预览URL:', previewUrl.value)
     })
   }
 }
@@ -737,13 +770,48 @@ const handleDeploy = async () => {
     return
   }
 
+  const buildDeployUrlFromKey = (deployKey: string) => {
+    const deployDomain = import.meta.env.VITE_APP_DEPLOY_DOMAIN || 'http://localhost'
+    const key = String(deployKey || '').replace(/^\//, '')
+    const distSuffix = codeGenType.value === 'vue_project' ? '/dist' : ''
+    return `${deployDomain}/${key}${distSuffix}`
+  }
+
   try {
     deploying.value = true
+
+    // 先刷新一次，判断是否已部署
+    await refreshAppInfo()
+    const existingDeployKey = appInfo.value?.deployKey
+    const existingDeployed = Boolean(existingDeployKey || appInfo.value?.deployedTime)
+    if (existingDeployed && existingDeployKey) {
+      const deployUrl = buildDeployUrlFromKey(existingDeployKey)
+      Modal.info({
+        title: '已部署',
+        content: `部署地址：${deployUrl}`,
+        okText: '复制链接',
+        onOk: () => {
+          navigator.clipboard.writeText(deployUrl)
+          message.success('链接已复制到剪贴板')
+        },
+      })
+      return
+    }
+
+    // 未部署：执行部署
     const res = await deployApp({ appId: appId.value as any })
-    if (res.data.code === 0 && res.data.data) {
-      const deployUrl = res.data.data
+    if (res.data.code === 0) {
+      // 后端可能直接返回完整URL，也可能只返回key；这里优先用最新的 deployKey 构造，确保 vue_project 自动补 /dist
+      await refreshAppInfo()
+      const deployKey = appInfo.value?.deployKey
+      let deployUrl = deployKey ? buildDeployUrlFromKey(deployKey) : (res.data.data || '')
+
+      // 兜底：如果后端返回的是完整URL且为 vue 项目，自动补 /dist（避免漏）
+      if (deployUrl && codeGenType.value === 'vue_project' && !/\/dist\/?$/.test(deployUrl)) {
+        deployUrl = deployUrl.replace(/\/$/, '') + '/dist'
+      }
+
       message.success('部署成功！')
-      // 可以打开新窗口或复制链接
       if (deployUrl) {
         Modal.info({
           title: '部署成功',
