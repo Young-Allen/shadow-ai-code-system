@@ -17,6 +17,7 @@ import com.shadow.aicodingsystem.exception.ErrorCode;
 import com.shadow.aicodingsystem.exception.ThrowUtils;
 import com.shadow.aicodingsystem.model.entity.User;
 import com.shadow.aicodingsystem.model.vo.UserVO;
+import com.shadow.aicodingsystem.service.ScreenshotService;
 import com.shadow.aicodingsystem.service.UserService;
 import com.shadow.aicodingsystem.mapper.AppMapper;
 import com.shadow.aicodingsystem.model.dto.app.AppQueryRequest;
@@ -63,6 +64,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Resource
     private VueProjectBuilder vueProjectBuilder;
+
+    @Resource
+    private ScreenshotService screenshotService;
 
     @Override
     public AppVO getAppVO(App app) {
@@ -245,9 +249,32 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         ThrowUtils.throwIf(!updatedById, ErrorCode.SYSTEM_ERROR, "部署失败");
 
         //8. 返回部署url
-        return String.format("%s/%s/", AppConstant.CODE_DEPLOY_HOST, deployKey);
+        String appDeployUrl =  String.format("%s/%s/", AppConstant.CODE_DEPLOY_HOST, deployKey);
+        //9. 异步生成应用截图并更新封面
+        generateAppScreenshotAsync(appId, appDeployUrl);
+        return appDeployUrl;
     }
-    
+
+    /**
+     * 异步生成应用截图并更新封面
+     *
+     * @param appId  应用ID
+     * @param appUrl 应用访问URL
+     */
+    @Override
+    public void generateAppScreenshotAsync(Long appId, String appUrl) {
+        // 使用虚拟线程并执行
+        Thread.startVirtualThread(() -> {
+            // 调用截图服务生成截图并上传
+            String screenshotUrl = screenshotService.generateAndUploadScreenshot(appUrl);
+            // 更新数据库的封面
+            App updateApp = new App();
+            updateApp.setId(appId);
+            updateApp.setCover(screenshotUrl);
+            boolean updated = this.updateById(updateApp);
+            ThrowUtils.throwIf(!updated, ErrorCode.OPERATION_ERROR, "更新应用封面字段失败");
+        });
+    }
 
     @Override
     public boolean removeById(Serializable id) {
