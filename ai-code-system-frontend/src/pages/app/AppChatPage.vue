@@ -9,6 +9,9 @@
           </template>
         </a-button>
         <span class="app-title" :title="appName">{{ appName || '未命名应用' }}</span>
+        <a-tag v-if="codeGenTypeLabel" color="blue" class="app-codegen-tag">
+          {{ codeGenTypeLabel }}
+        </a-tag>
       </div>
       <div class="top-bar-right">
         <a-button v-if="canManage" @click="openDetailModal">
@@ -17,7 +20,7 @@
           </template>
           应用详情
         </a-button>
-        <a-button  v-if="canManage" type="dashed" :disabled="!previewPageUrl" @click="handleOpenPreviewPage">
+        <a-button  v-if="canManage" type="primary" :disabled="!previewPageUrl" @click="handleOpenPreviewPage">
           <template #icon>
             <EyeOutlined />
           </template>
@@ -28,6 +31,12 @@
             <CloudUploadOutlined />
           </template>
           应用部署
+        </a-button>
+        <a-button v-if="canManage" type="dashed" :loading="downloading" @click="handleDownloadCode">
+          <template #icon>
+            <DownloadOutlined />
+          </template>
+          下载代码
         </a-button>
       </div>
     </div>
@@ -178,6 +187,7 @@ import {
   RobotOutlined,
   InfoCircleOutlined,
   EyeOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons-vue'
 import { deleteApp, deleteAppByAdmin, deployApp, getAppVoById } from '@/api/appController'
 import { listAppChatHistory } from '@/api/chatHistoryController'
@@ -191,6 +201,7 @@ import 'highlight.js/styles/github-dark.css'
 import AppDetailModal from '@/components/AppDetailModal.vue'
 import { formatTime, formatDate } from '@/utils/format'
 import { handleAvatarError } from '@/utils/image'
+import { CODE_GEN_TYPE_OPTIONS } from '@/constants/codeGenType'
 
 const route = useRoute()
 const router = useRouter()
@@ -244,6 +255,12 @@ const inputTooltip = computed(() =>
 const previewUrl = ref('')
 const codeGenType = ref('')
 
+const codeGenTypeLabel = computed(() => {
+  if (!codeGenType.value) return ''
+  const found = CODE_GEN_TYPE_OPTIONS.find((item) => item.value === codeGenType.value)
+  return found?.label || codeGenType.value
+})
+
 // 顶部“应用预览”按钮用（不带时间戳，保持地址稳定）
 const previewPageUrl = computed(() => {
   if (!codeGenType.value || !appId.value) return ''
@@ -267,6 +284,7 @@ const handleOpenPreviewPage = () => {
 // 部署
 const deploying = ref(false)
 const deleting = ref(false)
+const downloading = ref(false)
 
 // 详情弹窗
 const detailModalOpen = ref(false)
@@ -799,6 +817,92 @@ const handleDeploy = async () => {
   }
 }
 
+/**
+ * 处理下载代码
+ */
+const handleDownloadCode = async () => {
+  if (!appId.value) {
+    message.error('应用ID不存在')
+    return
+  }
+
+  try {
+    downloading.value = true
+    
+    // 使用axios直接请求，设置responseType为blob以接收二进制数据
+    const baseURL = request.defaults.baseURL
+    const url = `${baseURL}/app/download/${appId.value}`
+    
+    const response = await request({
+      url,
+      method: 'GET',
+      responseType: 'blob',
+      withCredentials: true,
+    })
+
+    // 检查响应是否为错误（后端可能返回JSON错误信息）
+    if (response.data instanceof Blob && response.data.type === 'application/json') {
+      // 如果是JSON格式的Blob，说明可能是错误信息
+      const text = await response.data.text()
+      try {
+        const errorData = JSON.parse(text)
+        if (errorData.code && errorData.code !== 0) {
+          message.error('下载失败：' + (errorData.message || '未知错误'))
+          return
+        }
+      } catch (e) {
+        // 解析失败，继续处理
+      }
+    }
+
+    // 从响应头中获取文件名
+    let filename = `app_${appId.value}.zip`
+    const contentDisposition = response.headers['content-disposition'] || response.headers['Content-Disposition']
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, '')
+        // 处理URL编码的文件名
+        try {
+          filename = decodeURIComponent(filename)
+        } catch (e) {
+          // 如果解码失败，使用原始文件名
+        }
+      }
+    }
+
+    // 创建blob URL并触发下载
+    const blob = new Blob([response.data], { type: 'application/zip' })
+    const blobUrl = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = blobUrl
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(blobUrl)
+
+    message.success('代码下载成功')
+  } catch (error: any) {
+    console.error('下载失败:', error)
+    
+    // 如果响应是JSON格式（错误信息），尝试解析
+    if (error.response?.data instanceof Blob) {
+      try {
+        const text = await error.response.data.text()
+        const errorData = JSON.parse(text)
+        message.error('下载失败：' + (errorData.message || '未知错误'))
+      } catch (e) {
+        message.error('下载失败')
+      }
+    } else {
+      message.error('下载失败：' + (error.message || '未知错误'))
+    }
+  } finally {
+    downloading.value = false
+  }
+}
+
 const handleEditApp = () => {
   if (!appId.value) return
   if (!canManage.value) {
@@ -911,10 +1015,14 @@ onMounted(() => {
   font-size: 16px;
   font-weight: 600;
   color: rgba(0, 0, 0, 0.85);
-  max-width: 360px;
+  max-width: 320px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.app-codegen-tag {
+  margin-left: 8px;
 }
 
 .content-area {

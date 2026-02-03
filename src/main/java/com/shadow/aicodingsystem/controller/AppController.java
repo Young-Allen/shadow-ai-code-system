@@ -19,8 +19,11 @@ import com.shadow.aicodingsystem.model.entity.App;
 import com.shadow.aicodingsystem.model.entity.User;
 import com.shadow.aicodingsystem.model.vo.AppVO;
 import com.shadow.aicodingsystem.service.AppService;
+import com.shadow.aicodingsystem.service.ProjectDownloadService;
 import com.shadow.aicodingsystem.service.UserService;
+import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
@@ -28,6 +31,7 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.io.File;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -41,11 +45,14 @@ import java.util.Map;
 @RequestMapping("/app")
 public class AppController {
 
-    @Autowired
+    @Resource
     private AppService appService;
 
-    @Autowired
+    @Resource
     private UserService userService;
+
+    @Resource
+    private ProjectDownloadService projectDownloadService;
 
     /**
      * 创建应用
@@ -58,20 +65,9 @@ public class AppController {
     @AuthCheck(mustRole = UserConstant.USER_LOGIN_STATE)
     public BaseResponse<Long> addApp(@RequestBody AppAddRequest appAddRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(appAddRequest == null, ErrorCode.PARAMS_ERROR);
-        String initPrompt = appAddRequest.getInitPrompt();
-        ThrowUtils.throwIf(StrUtil.isBlank(initPrompt), ErrorCode.PARAMS_ERROR, "初始化Prompt不能为空");
-
         User loginUser = userService.getLoginUser(request);
-        App app = new App();
-        BeanUtil.copyProperties(appAddRequest, app);
-        app.setUserId(loginUser.getId());
-        app.setAppName(initPrompt.substring(0, Math.min(initPrompt.length(), 12)) + "...");
-        app.setCodeGenType(CodeGenTypeEnum.VUE_PROJECT.getValue());
-//        app.setCodeGenType(CodeGenTypeEnum.MULTI_FILE.getValue());
-        //插入数据库
-        boolean result = appService.save(app);
-        ThrowUtils.throwIf(!result, ErrorCode.SYSTEM_ERROR);
-        return ResultUtils.success(app.getId());
+        Long appId = appService.createApp(appAddRequest, loginUser);
+        return ResultUtils.success(appId);
     }
 
     /**
@@ -350,5 +346,36 @@ public class AppController {
         String deployUrl = appService.deployApp(id, loginUser);
     // 返回成功响应，包含部署URL
         return ResultUtils.success(deployUrl);
+    }
+
+    /**
+     * 下载应用代码
+     * @param appId
+     * @param response
+     * @param request
+     */
+    @GetMapping("/download/{appId}")
+    public void downloadAppCode(@PathVariable Long appId, HttpServletResponse response, HttpServletRequest request) {
+        //1. 基础校验
+        ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR);
+        //2. 查询应用信息
+        App app = appService.getById(appId);
+        ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR, "应用不存在");
+        //3.校验权限：只有应用创建者可以下载代码
+        User loginUser = userService.getLoginUser(request);
+        if(!app.getUserId().equals(loginUser.getId())){
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限下载该应用的代码");
+        }
+        //4. 构建应用代码目录路径（生成目录，不是部署目录）
+        String codeGenType = app.getCodeGenType();
+        String sourceDirName = codeGenType + "_" + appId;
+        String sourceDirPath = AppConstant.CODE_OUTPUT_ROOT_DIR + File.separator + sourceDirName;
+        //5. 检查代码目录是否存在
+        File sourceDir = new File(sourceDirPath);
+        ThrowUtils.throwIf(!sourceDir.exists(), ErrorCode.NOT_FOUND_ERROR, "应用代码目录不存在");
+        //6. 生成下载文件名（不建议添加中文内容）
+        String downLoadFilName = String.valueOf(appId);
+        //7. 下载文件
+        projectDownloadService.downloadProjectAsZip(sourceDirPath, downLoadFilName, response);
     }
 }
