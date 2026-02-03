@@ -2,12 +2,12 @@
   <div class="app-card" @click="handleCardClick">
     <div class="app-cover">
       <a-image
-        v-if="app.cover"
-        :src="app.cover"
+        v-if="app.cover && !hasCoverError"
+        :src="normalizedCoverUrl"
         :alt="app.appName"
         :preview="false"
         class="app-cover-image"
-        @error="handleImageError"
+        @error="handleCoverError"
       />
       <a-image
         v-else
@@ -54,9 +54,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { handleAvatarError, handleImageError, DEFAULT_AVATAR, DEFAULT_COVER } from '@/utils/image'
+import { handleAvatarError, DEFAULT_AVATAR, DEFAULT_COVER } from '@/utils/image'
 
 interface Props {
   app: API.AppVO
@@ -78,6 +78,24 @@ const emit = defineEmits<{
 const router = useRouter()
 const defaultAvatar = DEFAULT_AVATAR
 const defaultCover = DEFAULT_COVER
+
+const hasCoverError = ref(false)
+
+// 规范化封面地址：补全协议，去掉明显的前置斜杠
+const normalizedCoverUrl = computed(() => {
+  const raw = props.app.cover || ''
+  let url = raw.trim()
+  if (!url) return ''
+  // 如果没有 http/https 前缀，默认使用 https
+  if (!/^https?:\/\//i.test(url)) {
+    url = 'https://' + url.replace(/^\/+/, '')
+  }
+  return url
+})
+
+const handleCoverError = () => {
+  hasCoverError.value = true
+}
 
 const handleCardClick = () => {
   emit('click', props.app)

@@ -2,6 +2,7 @@ package com.shadow.aicodingsystem.service;
 
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.service.IService;
+import com.shadow.aicodingsystem.model.dto.app.AppAddRequest;
 import com.shadow.aicodingsystem.model.dto.app.AppQueryRequest;
 import com.shadow.aicodingsystem.model.entity.App;
 import com.shadow.aicodingsystem.model.entity.User;
@@ -16,6 +17,14 @@ import java.util.List;
  * @author shadow
  */
 public interface AppService extends IService<App> {
+
+    /**
+     * 创建应用
+     * @param appAddRequest
+     * @param loginuser
+     * @return
+     */
+    Long createApp(AppAddRequest appAddRequest, User loginuser);
 
     /**
      * 根据App实体对象获取AppVO视图对象
@@ -50,6 +59,15 @@ public interface AppService extends IService<App> {
      * @return Flux<String> 代码生成结果
      */
     Flux<String> chatToGenCode(Long appId, String message, User loginuser);
+
+
+    /**
+     * 生成并上传应用截图
+     *
+     * @param appId       应用ID
+     * @param appUrl      应用URL
+     */
+    void generateAppScreenshotAsync(Long appId, String appUrl);
 
     /**
      * 部署应用

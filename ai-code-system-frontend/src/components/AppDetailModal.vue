@@ -26,6 +26,15 @@
         <span class="app-detail-value">{{ appInfo?.appName || '未命名应用' }}</span>
       </div>
       <div class="app-detail-row">
+        <span class="app-detail-label">生成类型：</span>
+        <span class="app-detail-value">
+          <a-tag v-if="codeGenTypeLabel" color="blue">
+            {{ codeGenTypeLabel }}
+          </a-tag>
+          <span v-else>-</span>
+        </span>
+      </div>
+      <div class="app-detail-row">
         <span class="app-detail-label">创建时间：</span>
         <span class="app-detail-value">{{ formatDate(appInfo?.createTime) }}</span>
       </div>
@@ -47,6 +56,7 @@
 import { computed } from 'vue'
 import { formatDate } from '@/utils/format'
 import { handleAvatarError, DEFAULT_AVATAR } from '@/utils/image'
+import { CODE_GEN_TYPE_OPTIONS } from '@/constants/codeGenType'
 
 interface Props {
   appInfo: API.AppVO | null
@@ -78,6 +88,13 @@ const open = computed({
 })
 
 const defaultAvatar = DEFAULT_AVATAR
+
+const codeGenTypeLabel = computed(() => {
+  const type = props.appInfo?.codeGenType
+  if (!type) return ''
+  const found = CODE_GEN_TYPE_OPTIONS.find((item) => item.value === type)
+  return found?.label || type
+})
 
 const handleCancel = () => {
   emit('cancel')

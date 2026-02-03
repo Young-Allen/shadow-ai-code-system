@@ -7,6 +7,7 @@ import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
+import com.shadow.aicodingsystem.ai.AiCodeGenTypeRoutingService;
 import com.shadow.aicodingsystem.ai.model.enums.CodeGenTypeEnum;
 import com.shadow.aicodingsystem.constant.AppConstant;
 import com.shadow.aicodingsystem.core.AiCodeGeneratorFacade;
@@ -15,8 +16,10 @@ import com.shadow.aicodingsystem.core.handler.StreamHandlerExecutor;
 import com.shadow.aicodingsystem.exception.BusinessException;
 import com.shadow.aicodingsystem.exception.ErrorCode;
 import com.shadow.aicodingsystem.exception.ThrowUtils;
+import com.shadow.aicodingsystem.model.dto.app.AppAddRequest;
 import com.shadow.aicodingsystem.model.entity.User;
 import com.shadow.aicodingsystem.model.vo.UserVO;
+import com.shadow.aicodingsystem.service.ScreenshotService;
 import com.shadow.aicodingsystem.service.UserService;
 import com.shadow.aicodingsystem.mapper.AppMapper;
 import com.shadow.aicodingsystem.model.dto.app.AppQueryRequest;
@@ -63,6 +66,29 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Resource
     private VueProjectBuilder vueProjectBuilder;
+
+    @Resource
+    private ScreenshotService screenshotService;
+
+    @Resource
+    private AiCodeGenTypeRoutingService aiCodeGenTypeRoutingService;
+
+    @Override
+    public Long createApp(AppAddRequest appAddRequest, User loginuser) {
+        String initPrompt = appAddRequest.getInitPrompt();
+        ThrowUtils.throwIf(StrUtil.isBlank(initPrompt), ErrorCode.PARAMS_ERROR, "初始化提示不能为空");
+        App app = new App();
+        BeanUtil.copyProperties(appAddRequest, app);
+        app.setUserId(loginuser.getId());
+        app.setAppName(initPrompt.substring(0, Math.min(initPrompt.length(), 12)));
+        CodeGenTypeEnum codeGenTypeEnum = aiCodeGenTypeRoutingService.routeCodeGenType(initPrompt);
+        app.setCodeGenType(codeGenTypeEnum.getValue());
+
+        boolean result = this.save(app);
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        log.info("创建应用成功, 应用ID: {}, 类型: {}", app.getId(), app.getCodeGenType());
+        return app.getId();
+    }
 
     @Override
     public AppVO getAppVO(App app) {
@@ -245,9 +271,32 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         ThrowUtils.throwIf(!updatedById, ErrorCode.SYSTEM_ERROR, "部署失败");
 
         //8. 返回部署url
-        return String.format("%s/%s/", AppConstant.CODE_DEPLOY_HOST, deployKey);
+        String appDeployUrl =  String.format("%s/%s/", AppConstant.CODE_DEPLOY_HOST, deployKey);
+        //9. 异步生成应用截图并更新封面
+        generateAppScreenshotAsync(appId, appDeployUrl);
+        return appDeployUrl;
     }
-    
+
+    /**
+     * 异步生成应用截图并更新封面
+     *
+     * @param appId  应用ID
+     * @param appUrl 应用访问URL
+     */
+    @Override
+    public void generateAppScreenshotAsync(Long appId, String appUrl) {
+        // 使用虚拟线程并执行
+        Thread.startVirtualThread(() -> {
+            // 调用截图服务生成截图并上传
+            String screenshotUrl = screenshotService.generateAndUploadScreenshot(appUrl);
+            // 更新数据库的封面
+            App updateApp = new App();
+            updateApp.setId(appId);
+            updateApp.setCover(screenshotUrl);
+            boolean updated = this.updateById(updateApp);
+            ThrowUtils.throwIf(!updated, ErrorCode.OPERATION_ERROR, "更新应用封面字段失败");
+        });
+    }
 
     @Override
     public boolean removeById(Serializable id) {
