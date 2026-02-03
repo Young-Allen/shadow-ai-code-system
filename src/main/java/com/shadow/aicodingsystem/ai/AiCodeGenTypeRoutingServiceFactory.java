@@ -19,7 +19,7 @@ public class AiCodeGenTypeRoutingServiceFactory {
 
     /**
      * 获取AI代码生成类型路由服务
-     * @return
+     * @return AI代码生成类型路由服务
      */
     @Bean
     public AiCodeGenTypeRoutingService getAiCodeGenTypeRoutingService() {

@@ -16,7 +16,7 @@
       <div class="top-bar-right">
         <a-button v-if="canManage" @click="openDetailModal">
           <template #icon>
-            <InfoCircleOutlined /> 
+            <InfoCircleOutlined />
           </template>
           应用详情
         </a-button>
@@ -174,7 +174,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick, computed } from 'vue'
+import { ref, onMounted, nextTick, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -370,7 +370,7 @@ const loadChatHistory = async (isLoadMore = false) => {
     }
 
     // 加载更多时传入当前最早一条消息的
-    // 
+    //
     // ，向前翻页
     if (isLoadMore && chatHistoryList.value.length > 0) {
       params.lastCreateTime = chatHistoryList.value[0].createTime
@@ -828,11 +828,11 @@ const handleDownloadCode = async () => {
 
   try {
     downloading.value = true
-    
+
     // 使用axios直接请求，设置responseType为blob以接收二进制数据
     const baseURL = request.defaults.baseURL
     const url = `${baseURL}/app/download/${appId.value}`
-    
+
     const response = await request({
       url,
       method: 'GET',
@@ -885,7 +885,7 @@ const handleDownloadCode = async () => {
     message.success('代码下载成功')
   } catch (error: any) {
     console.error('下载失败:', error)
-    
+
     // 如果响应是JSON格式（错误信息），尝试解析
     if (error.response?.data instanceof Blob) {
       try {

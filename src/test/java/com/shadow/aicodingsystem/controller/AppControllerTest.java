@@ -2,14 +2,10 @@ package com.shadow.aicodingsystem.controller;
 
 import com.shadow.aicodingsystem.ai.AiCodeGenTypeRoutingService;
 import com.shadow.aicodingsystem.ai.model.enums.CodeGenTypeEnum;
-import com.shadow.aicodingsystem.core.AiCodeGeneratorFacade;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.Repeat;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 @Slf4j
 @SpringBootTest

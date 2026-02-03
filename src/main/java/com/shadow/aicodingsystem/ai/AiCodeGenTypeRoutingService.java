@@ -7,8 +7,8 @@ public interface AiCodeGenTypeRoutingService {
 
     /**
      * 根据用户提示，路由到对应的代码生成类型
-     * @param userPrompt
-     * @return
+     * @param userPrompt 用户提示
+     * @return 代码生成类型
      */
     @SystemMessage(fromResource = "prompt/codegen-routing-system-prompt.txt")
     CodeGenTypeEnum routeCodeGenType(String userPrompt);

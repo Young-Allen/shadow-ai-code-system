@@ -4,7 +4,6 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.mybatisflex.core.paginate.Page;
-import com.shadow.aicodingsystem.ai.model.enums.CodeGenTypeEnum;
 import com.shadow.aicodingsystem.annotation.AuthCheck;
 import com.shadow.aicodingsystem.common.BaseResponse;
 import com.shadow.aicodingsystem.common.DeleteRequest;
@@ -24,7 +23,6 @@ import com.shadow.aicodingsystem.service.UserService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
@@ -350,9 +348,9 @@ public class AppController {
 
     /**
      * 下载应用代码
-     * @param appId
-     * @param response
-     * @param request
+     * @param appId 应用ID
+     * @param response HTTP响应对象，用于将应用代码打包并下载
+     * @param request HTTP请求对象，用于获取当前登录用户信息
      */
     @GetMapping("/download/{appId}")
     public void downloadAppCode(@PathVariable Long appId, HttpServletResponse response, HttpServletRequest request) {
