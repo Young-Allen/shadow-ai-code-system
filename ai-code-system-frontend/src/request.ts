@@ -1,9 +1,10 @@
 import axios from 'axios'
 import {message} from 'ant-design-vue'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 //创建Axios实例
 const myAxios = axios.create({
-    baseURL: 'http://localhost:8123/api',
+    baseURL: API_BASE_URL,
     timeout: 60000,
     withCredentials: true,
 })
@@ -20,7 +21,7 @@ myAxios.interceptors.response.use(response => {
     const {data} = response
     //未登录
     if(data.code === 40100){
-        //不是获取用户信息的请求，，并且用户目前不是已经在用户登录页面，则跳转至用户登录页面
+        //不是获取用户信息的请求，并且用户目前不是已经在用户登录页面，则跳转至用户登录页面
         if(
             !response.request.responseURL.includes('/user/get/login') &&
             !window.location.href.includes('/user/login')
