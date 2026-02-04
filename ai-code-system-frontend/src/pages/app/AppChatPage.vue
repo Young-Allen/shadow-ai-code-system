@@ -20,7 +20,12 @@
           </template>
           应用详情
         </a-button>
-        <a-button  v-if="canManage" type="primary" :disabled="!previewPageUrl" @click="handleOpenPreviewPage">
+        <a-button
+          v-if="canManage"
+          type="primary"
+          :disabled="!previewPageUrl"
+          @click="handleOpenPreviewPage"
+        >
           <template #icon>
             <EyeOutlined />
           </template>
@@ -48,10 +53,7 @@
         <!-- 消息区域 -->
         <div class="messages-container" ref="messagesContainerRef">
           <!-- 加载更多历史记录 -->
-          <div
-            v-if="hasMoreHistory"
-            class="load-more-history"
-          >
+          <div v-if="hasMoreHistory" class="load-more-history">
             <a-button type="link" :loading="loadingHistory" @click="handleLoadMoreHistory">
               加载更多
             </a-button>
@@ -86,9 +88,9 @@
           </div>
 
           <!-- 优化按钮 -->
-          <div v-if="showOptimizeBtn" class="optimize-section">
+          <!-- <div v-if="showOptimizeBtn" class="optimize-section">
             <a-button type="default" @click="handleOptimize">优化</a-button>
-          </div>
+          </div> -->
 
           <!-- 加载中提示 -->
           <div v-if="streaming" class="streaming-indicator">
@@ -99,6 +101,30 @@
 
         <!-- 用户消息输入框 -->
         <div class="input-section">
+          <!-- 选中元素提示 -->
+          <a-alert
+            v-if="selectedElement"
+            :message="`已选中元素: ${selectedElement.tagName}${
+              selectedElement.id ? '#' + selectedElement.id : ''
+            }${
+              selectedElement.className ? '.' + selectedElement.className.split(' ').join('.') : ''
+            }`"
+            type="info"
+            closable
+            @close="handleRemoveSelectedElement"
+            class="selected-element-alert"
+          >
+            <template #description>
+              <div class="element-info">
+                <div v-if="selectedElement.textContent">
+                  内容: {{ selectedElement.textContent.substring(0, 50)
+                  }}{{ selectedElement.textContent.length > 50 ? '...' : '' }}
+                </div>
+                <div>选择器: {{ selectedElement.selector }}</div>
+              </div>
+            </template>
+          </a-alert>
+
           <a-tooltip :title="inputTooltip">
             <div class="message-input-wrapper">
               <a-textarea
@@ -107,7 +133,7 @@
                 :rows="4"
                 class="message-input"
                 :disabled="inputDisabled"
-                @pressEnter="handleSendMessage"
+                @pressEnter.prevent="handleSendMessage"
               />
             </div>
           </a-tooltip>
@@ -119,11 +145,16 @@
                 </template>
                 上传
               </a-button>
-              <a-button type="text" class="action-btn" :disabled="inputDisabled">
+              <a-button
+                type="text"
+                :class="['action-btn', { 'edit-mode-active': isEditMode }]"
+                :disabled="inputDisabled || !previewUrl"
+                @click="handleToggleEditMode"
+              >
                 <template #icon>
                   <EditOutlined />
                 </template>
-                编辑
+                {{ isEditMode ? '退出编辑' : '编辑' }}
               </a-button>
               <a-button type="text" class="action-btn" :disabled="inputDisabled">
                 <template #icon>
@@ -151,7 +182,13 @@
       <!-- 右侧网页展示区域 -->
       <div class="preview-panel">
         <div class="preview-content" v-if="previewUrl">
-          <iframe :key="previewUrl" :src="previewUrl" frameborder="0" class="preview-iframe"></iframe>
+          <iframe
+            ref="previewIframeRef"
+            :key="previewUrl"
+            :src="previewUrl"
+            frameborder="0"
+            class="preview-iframe"
+          ></iframe>
         </div>
         <div v-else class="preview-placeholder">
           <a-empty description="网站生成完成后将在此展示" />
@@ -174,7 +211,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, computed } from 'vue'
+import { ref, onMounted, nextTick, computed, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -202,6 +239,7 @@ import AppDetailModal from '@/components/AppDetailModal.vue'
 import { formatTime, formatDate } from '@/utils/format'
 import { handleAvatarError } from '@/utils/image'
 import { CODE_GEN_TYPE_OPTIONS } from '@/constants/codeGenType'
+import { VisualEditor, type SelectedElement } from '@/utils/visualEditor'
 
 const route = useRoute()
 const router = useRouter()
@@ -242,18 +280,21 @@ const hasMoreHistory = ref(false)
 
 // 用户输入
 const userMessage = ref('')
-const inputPlaceholder =
-  '描述越详细,页面越具体,可以一步一步完善生成效果'
+const inputPlaceholder = '描述越详细,页面越具体,可以一步一步完善生成效果'
 const inputDisabled = computed(
   () => streaming.value || appLoading.value || permissionDisabled.value
 )
-const inputTooltip = computed(() =>
-  permissionDisabled.value ? '无法在别人的作品下对话哦~' : null
-)
+const inputTooltip = computed(() => (permissionDisabled.value ? '无法在别人的作品下对话哦~' : null))
 
 // 预览
 const previewUrl = ref('')
 const codeGenType = ref('')
+
+// 可视化编辑相关
+const previewIframeRef = ref<HTMLIFrameElement>()
+const isEditMode = ref(false)
+const selectedElement = ref<SelectedElement | null>(null)
+let visualEditor: VisualEditor | null = null
 
 const codeGenTypeLabel = computed(() => {
   if (!codeGenType.value) return ''
@@ -264,8 +305,8 @@ const codeGenTypeLabel = computed(() => {
 // 顶部“应用预览”按钮用（不带时间戳，保持地址稳定）
 const previewPageUrl = computed(() => {
   if (!codeGenType.value || !appId.value) return ''
-  const previewDomain = import.meta.env.VITE_APP_PREVIEW_DOMAIN || 'http://localhost:8123'
-  let basePath = `${previewDomain}/api/static/${codeGenType.value}_${appId.value}`
+  const previewDomain = import.meta.env.VITE_API_BASE_URL || '/api'
+  let basePath = `${previewDomain}/static/${codeGenType.value}_${appId.value}`
   if (codeGenType.value === 'vue_project') {
     // Vue 项目预览入口在 dist 下
     basePath += '/dist/index.html'
@@ -319,11 +360,7 @@ const md: MarkdownIt = new MarkdownIt({
     }
     // 如果没有指定语言，尝试自动检测
     try {
-      return (
-        '<pre class="hljs"><code>' +
-        hljs.highlightAuto(str).value +
-        '</code></pre>'
-      )
+      return '<pre class="hljs"><code>' + hljs.highlightAuto(str).value + '</code></pre>'
     } catch (__) {
       // 忽略错误
     }
@@ -507,7 +544,9 @@ const sendMessageToAI = async (messageText: string) => {
 
     // 构建SSE请求URL
     const baseURL = request.defaults.baseURL
-    const url = `${baseURL}/app/chat/gen/code?appId=${appId.value}&message=${encodeURIComponent(messageText)}`
+    const url = `${baseURL}/app/chat/gen/code?appId=${appId.value}&message=${encodeURIComponent(
+      messageText
+    )}`
 
     // 关闭旧连接
     if (eventSource) {
@@ -705,15 +744,22 @@ const updatePreview = () => {
     nextTick(() => {
       // 构建预览URL: {VITE_APP_PREVIEW_DOMAIN}/api/static/{codeGenType}_{appId}/
       // 添加时间戳参数强制刷新iframe，避免显示缓存内容
-      const previewDomain = import.meta.env.VITE_APP_PREVIEW_DOMAIN || 'http://localhost:8123'
+      const previewDomain = import.meta.env.VITE_API_BASE_URL || '/api'
       const timestamp = Date.now()
       // 如果是vue项目，需要在URL后面添加 /dist/index.html
-      let basePath = `${previewDomain}/api/static/${codeGenType.value}_${appId.value}`
+      let basePath = `${previewDomain}/static/${codeGenType.value}_${appId.value}`
       if (codeGenType.value === 'vue_project') {
         basePath += '/dist/index.html'
       }
       previewUrl.value = `${basePath}?t=${timestamp}`
       console.log('预览URL:', previewUrl.value)
+
+      // 等待 iframe 加载完成后初始化可视化编辑器
+      setTimeout(() => {
+        if (previewIframeRef.value) {
+          initVisualEditor()
+        }
+      }, 1000)
     })
   }
 }
@@ -727,8 +773,8 @@ const handleSendMessage = async () => {
     return
   }
 
-  const messageText = userMessage.value.trim()
-  if (!messageText) {
+  const rawMessageText = userMessage.value.trim()
+  if (!rawMessageText) {
     message.warning('请输入消息')
     return
   }
@@ -738,18 +784,39 @@ const handleSendMessage = async () => {
     return
   }
 
-  // 添加用户消息
+  // 组装发送给后端的最终提示词（包含选中元素信息）
+  let finalMessageText = rawMessageText
+  if (selectedElement.value) {
+    const el = selectedElement.value
+    const elementInfoLines = [
+      '[选中元素信息]',
+      `- 标签: ${el.tagName}`,
+      `- 选择器: ${el.selector}`,
+      `- ID: ${el.id || '无'}`,
+      `- Class: ${el.className || '无'}`,
+      `- 内容: ${el.textContent || '无'}`,
+      `- XPath: ${el.xpath}`,
+    ]
+    finalMessageText = `${rawMessageText}\n\n${elementInfoLines.join('\n')}`
+  }
+
+  // 添加用户消息（对话中仍只展示用户输入的原始内容）
   messages.value.push({
     type: 'user',
-    content: messageText,
+    content: rawMessageText,
     timestamp: Date.now(),
   })
 
   // 清空输入框
   userMessage.value = ''
 
-  // 发送给AI
-  await sendMessageToAI(messageText)
+  // 发送给AI（包含选中元素信息的完整提示词）
+  await sendMessageToAI(finalMessageText)
+
+  // 发送后清除选中元素并退出编辑模式
+  if (isEditMode.value) {
+    handleExitEditMode()
+  }
 }
 
 /**
@@ -857,7 +924,8 @@ const handleDownloadCode = async () => {
 
     // 从响应头中获取文件名
     let filename = `app_${appId.value}.zip`
-    const contentDisposition = response.headers['content-disposition'] || response.headers['Content-Disposition']
+    const contentDisposition =
+      response.headers['content-disposition'] || response.headers['Content-Disposition']
     if (contentDisposition) {
       const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
       if (filenameMatch && filenameMatch[1]) {
@@ -954,11 +1022,8 @@ const handleDeleteApp = async () => {
 const formatMessage = (content: string) => {
   if (!content) return ''
   // 简单的格式化，可以后续增强
-  return content
-    .replace(/\n/g, '<br>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
+  return content.replace(/\n/g, '<br>').replace(/`([^`]+)`/g, '<code>$1</code>')
 }
-
 
 /**
  * 滚动到底部
@@ -969,10 +1034,101 @@ const scrollToBottom = () => {
   }
 }
 
+/**
+ * 初始化可视化编辑器
+ */
+const initVisualEditor = () => {
+  if (!previewIframeRef.value) {
+    console.warn('previewIframeRef 不存在')
+    return
+  }
+
+  console.log('初始化可视化编辑器')
+
+  // 如果已经有编辑器实例，先销毁
+  if (visualEditor) {
+    visualEditor.destroy()
+  }
+
+  visualEditor = new VisualEditor()
+  visualEditor.init(previewIframeRef.value, (element) => {
+    selectedElement.value = element
+  })
+}
+
+/**
+ * 切换编辑模式
+ */
+const handleToggleEditMode = () => {
+  if (!previewUrl.value) {
+    message.warning('请先生成网站预览')
+    return
+  }
+
+  if (isEditMode.value) {
+    handleExitEditMode()
+  } else {
+    handleEnterEditMode()
+  }
+}
+
+/**
+ * 进入编辑模式
+ */
+const handleEnterEditMode = () => {
+  console.log('handleEnterEditMode 被调用')
+  isEditMode.value = true
+
+  // 如果编辑器还未初始化，先初始化
+  if (!visualEditor && previewIframeRef.value) {
+    console.log('编辑器未初始化，先初始化')
+    initVisualEditor()
+  }
+
+  // 延迟一下确保 iframe 已加载和脚本已注入
+  setTimeout(() => {
+    if (visualEditor) {
+      visualEditor.enterEditMode()
+      message.success('已进入编辑模式，点击网页元素进行选择')
+    } else {
+      console.error('visualEditor 仍然为 null')
+      message.error('编辑器初始化失败，请刷新页面重试')
+    }
+  }, 500)
+}
+
+/**
+ * 退出编辑模式
+ */
+const handleExitEditMode = () => {
+  isEditMode.value = false
+  selectedElement.value = null
+  visualEditor?.exitEditMode()
+}
+
+/**
+ * 移除选中的元素
+ */
+const handleRemoveSelectedElement = () => {
+  selectedElement.value = null
+  visualEditor?.clearSelection()
+}
 
 // 组件挂载时初始化
 onMounted(() => {
   initApp()
+})
+
+// 组件卸载时清理
+onBeforeUnmount(() => {
+  if (visualEditor) {
+    visualEditor.destroy()
+    visualEditor = null
+  }
+  if (eventSource) {
+    eventSource.close()
+    eventSource = null
+  }
 })
 </script>
 
@@ -1327,6 +1483,19 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
+.selected-element-alert {
+  margin-bottom: 12px;
+}
+
+.element-info {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.element-info div {
+  margin-bottom: 4px;
+}
+
 .message-input {
   font-size: 14px;
 }
@@ -1354,6 +1523,11 @@ onMounted(() => {
 .action-btn {
   color: #666;
   padding: 0;
+}
+
+.action-btn.edit-mode-active {
+  color: #1890ff;
+  font-weight: 600;
 }
 
 .submit-btn {
@@ -1399,7 +1573,6 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
 }
-
 
 /* 响应式设计 */
 @media (max-width: 1024px) {
