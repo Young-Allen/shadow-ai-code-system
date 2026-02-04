@@ -4,13 +4,13 @@
     <a-layout-content class="layout-content">
       <RouterView />
     </a-layout-content>
-    <GlobalFooter />
+    <GlobalFooter v-if="showFooter" />
   </a-layout>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterView } from 'vue-router'
+import { RouterView, useRoute } from 'vue-router'
 import router from '@/router'
 import GlobalHeader from '@/components/GlobalHeader.vue'
 import GlobalFooter from '@/components/GlobalFooter.vue'
@@ -33,6 +33,7 @@ const allMenuItems: MenuItem[] = [
 ]
 
 const loginUserStore = useLoginUserStore()
+const route = useRoute()
 
 const menuItems = computed(() => {
   return allMenuItems.filter((menu) => {
@@ -46,19 +47,28 @@ const menuItems = computed(() => {
     return checkAccess(loginUserStore.loginUser, needAccess as any)
   })
 })
+
+const showFooter = computed(() => {
+  const path = route.path || ''
+  // 对话界面（/app/chat/:id）不显示全局底部
+  if (path.startsWith('/app/chat')) {
+    return false
+  }
+  return true
+})
 </script>
 
 <style scoped>
 .basic-layout {
-  --global-header-height: 64px;
+  --global-header-height: 60px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 
   .layout-content {
     flex: 1;
-    padding: 24px;
-    padding-top: calc(24px + var(--global-header-height));
+    padding: 0px;
+    padding-top: calc(0px + var(--global-header-height));
     background: #fff;
     min-height: 0;
   }

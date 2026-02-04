@@ -29,9 +29,7 @@ import com.shadow.aicodingsystem.service.AppService;
 import com.shadow.aicodingsystem.service.ChatHistoryService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import com.shadow.aicodingsystem.model.enums.MessageTypeEnum;
 
@@ -42,6 +40,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 /**
@@ -69,6 +68,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Resource
     private ScreenshotService screenshotService;
+
+    @Resource(name = "screenshotExecutor")
+    private Executor screenshotExecutor;
 
     @Resource
     private AiCodeGenTypeRoutingService aiCodeGenTypeRoutingService;
@@ -286,15 +288,23 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     @Override
     public void generateAppScreenshotAsync(Long appId, String appUrl) {
         // 使用虚拟线程并执行
-        Thread.startVirtualThread(() -> {
+        screenshotExecutor.execute(() -> {
+            try {
             // 调用截图服务生成截图并上传
             String screenshotUrl = screenshotService.generateAndUploadScreenshot(appUrl);
+            if (StrUtil.isBlank(screenshotUrl)) {
+                log.warn("Generate screenshot failed, skip updating cover, appId={}, appUrl={}", appId, appUrl);
+                return;
+            }
             // 更新数据库的封面
             App updateApp = new App();
             updateApp.setId(appId);
             updateApp.setCover(screenshotUrl);
             boolean updated = this.updateById(updateApp);
             ThrowUtils.throwIf(!updated, ErrorCode.OPERATION_ERROR, "更新应用封面字段失败");
+            } catch (Exception e) {
+                log.error("Async generate/upload screenshot failed, appId={}, appUrl={}, err={}", appId, appUrl, e.getMessage(), e);
+            }
         });
     }
 
