@@ -3,7 +3,7 @@ package com.shadow.aicodingsystem.ai;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.shadow.aicodingsystem.ai.model.enums.CodeGenTypeEnum;
-import com.shadow.aicodingsystem.ai.tools.FileWriteTool;
+import com.shadow.aicodingsystem.ai.tools.*;
 import com.shadow.aicodingsystem.exception.BusinessException;
 import com.shadow.aicodingsystem.exception.ErrorCode;
 import com.shadow.aicodingsystem.service.ChatHistoryService;
@@ -37,6 +37,10 @@ public class AiCodeGeneratorServiceFactory {
 
     @Resource
     private ChatHistoryService chatHistoryService;
+
+    @Resource
+    private ToolManager toolManager;
+
 
     /**
      * AI 服务实例缓存
@@ -116,7 +120,7 @@ public class AiCodeGeneratorServiceFactory {
                     .streamingChatModel(reasoningStreamingChatModel)  // 设置流式聊天模型
                     //调用generateVueProjectCodeStream的时候会带上appId，就是当前memoryId使用对应的chatMemory
                     .chatMemoryProvider(memoryId -> chatMemory)
-                    .tools(new FileWriteTool())  // 添加文件写入工具
+                    .tools(toolManager.getAllTools())  // 添加文件写入工具
                     //幻觉工具名称策略，配置了找不到工具时的处理策略,出现幻觉工具调用时不会直接报错
                     // 使用 ToolExecutionResultMessage.from(...) 伪造一条“工具执行结果消息”
                     .hallucinatedToolNameStrategy(toolExecutionRequest -> ToolExecutionResultMessage.from(

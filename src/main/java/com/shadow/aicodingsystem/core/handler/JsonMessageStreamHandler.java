@@ -5,6 +5,8 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.shadow.aicodingsystem.ai.model.message.*;
+import com.shadow.aicodingsystem.ai.tools.BaseTool;
+import com.shadow.aicodingsystem.ai.tools.ToolManager;
 import com.shadow.aicodingsystem.constant.AppConstant;
 import com.shadow.aicodingsystem.core.builder.VueProjectBuilder;
 import com.shadow.aicodingsystem.model.entity.User;
@@ -28,6 +30,9 @@ import java.util.Set;
 public class JsonMessageStreamHandler {
     @Resource
     private VueProjectBuilder vueProjectBuilder;
+
+    @Resource
+    private ToolManager toolManager;
 
     /**
      * 处理 TokenStream（VUE_PROJECT）
@@ -95,11 +100,13 @@ public class JsonMessageStreamHandler {
                 ToolRequestMessage toolRequestMessage = JSONUtil.toBean(chunk, ToolRequestMessage.class);
                 // 获取工具请求的ID
                 String toolId = toolRequestMessage.getId();
+                String toolName = toolRequestMessage.getName();
                 // 检查工具ID是否为空且是否未处理过
                 if (toolId != null && !seenToolIds.contains(toolId)) {
                     // 第一次调用该工具，执行相关逻辑
                     seenToolIds.add(toolId);
-                    return "\n\n[选择工具] 写入文件\n\n";
+                    BaseTool tool = toolManager.getTool(toolName);
+                    return tool.generateToolRequestResponse();
                 }else{
                     //不是第一次调用这个工具
                     return "";
@@ -109,40 +116,13 @@ public class JsonMessageStreamHandler {
             case TOOL_EXECUTED -> {
                 // 将JSON字符串转换为ToolRequestMessage对象
                 ToolExecutedMessage toolExecutedMessage = JSONUtil.toBean(chunk, ToolExecutedMessage.class);
+                String toolName = toolExecutedMessage.getName();
                 // 解析工具执行参数
                 JSONObject jsonObject = JSONUtil.parseObj(toolExecutedMessage.getArguments());
-                // 获取相对文件路径
-                String relativeFilePath = jsonObject.getStr("relativeFilePath");
-                // 获取文件后缀
-                String suffix = FileUtil.getSuffix(relativeFilePath);
-                // 获取文件内容
-                String content = jsonObject.getStr("content");
-                // 全量将代码内容流式传递给前端会导致页面卡顿，因此这里只取前300字符作为预览
-                int len = content != null ? content.length() : 0;
-                String preview = StrUtil.sub(content, 0, 300);
-                String result = String.format("""
-                        [工具调用] 写入文件: %s (len=%d)
-                        ```%s
-                        %s%s
-                        ```
-                        """,
-                        relativeFilePath,
-                        len,
-                        suffix,
-                        preview,
-                        len > 300 ? "\n... (truncated)" : ""
-                );
+                BaseTool tool = toolManager.getTool(toolName);
+                String result = tool.generateToolExecutedResult(jsonObject);
 
-                // 格式化工具执行结果
-//                String result = String.format("""
-//                        [工具调用] 写入文件: %s
-//                        ```%s
-//                        %s
-//                        ```
-//                        """, relativeFilePath, suffix, content);
-                // 格式化输出内容，添加前后换行
                 String output = String.format("\n\n%s\n\n", result);
-                // 将输出内容追加到聊天历史记录中
                 chatHistoryStringBuilder.append(output);
                 return output;
             }
