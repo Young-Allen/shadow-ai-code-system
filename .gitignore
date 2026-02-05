@@ -2,6 +2,7 @@
 src/main/resources/application-dev.yml
 tmp/*
 
+
 HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
@@ -37,3 +38,6 @@ build/
 .vscode/
 
 logs/*
+
+ai-code-system-frontend/.cursor
+ai-code-system-frontend/.kiro
