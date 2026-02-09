@@ -30,12 +30,15 @@
             </template>
             上传
           </a-button>
-          <a-button type="text" class="action-btn" :disabled="creating">
-            <template #icon>
-              <ThunderboltOutlined />
-            </template>
-            优化
-          </a-button>
+          <a-radio-group
+            v-model:value="chatMode"
+            button-style="solid"
+            size="large"
+            class="chat-mode-group"
+          >
+            <a-radio-button value="normal">普通模式</a-radio-button>
+            <a-radio-button value="agent">Agent模式</a-radio-button>
+          </a-radio-group>
         </div>
         <a-button
           type="primary"
@@ -158,15 +161,23 @@ import {
 } from '@ant-design/icons-vue'
 import { addApp, listMyAppVoByPage, listFeaturedAppVoByPage } from '@/api/appController'
 import { useLoginUserStore } from '@/stores/loginUser'
+import { useChatModeStore } from '@/stores/chatMode'
 import AppCard from '@/components/AppCard.vue'
 
 const router = useRouter()
 const loginUserStore = useLoginUserStore()
+const chatModeStore = useChatModeStore()
 
 // 用户提示词
 const userPrompt = ref('')
 const creating = ref(false)
 const inputPlaceholder = '使用 NoCode 创建一个高效的小工具,帮我计算……'
+
+// 对话模式：与 store 双向同步，保证与对话页一致
+const chatMode = computed({
+  get: () => (chatModeStore.agentMode ? 'agent' : 'normal'),
+  set: (v: 'normal' | 'agent') => chatModeStore.setMode(v),
+})
 
 // 快捷提示
 const quickPrompts = [
@@ -235,6 +246,8 @@ const handleCreateApp = async () => {
 
   try {
     creating.value = true
+    // 同步当前选择的模式到 store，供对话页使用
+    chatModeStore.setMode(chatMode.value)
     const res = await addApp({ initPrompt: userPrompt.value.trim() })
     if (res.data.code === 0 && res.data.data) {
       const appId = String(res.data.data)
@@ -467,7 +480,12 @@ onMounted(() => {
 
 .input-actions {
   display: flex;
+  align-items: center;
   gap: 16px;
+}
+
+.chat-mode-group {
+  flex-shrink: 0;
 }
 
 .action-btn {

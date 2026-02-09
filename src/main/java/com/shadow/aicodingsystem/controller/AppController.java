@@ -296,6 +296,7 @@ public class AppController {
     @GetMapping(value = "/chat/gen/code", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<String>> chatToGenCode(@RequestParam Long appId,
                                                        @RequestParam String message,
+                                                       @RequestParam(defaultValue = "false") boolean agent,
                                                        HttpServletRequest request) {
         // 参数校验：检查应用ID是否有效（必须大于0）
         ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID无效");
@@ -304,7 +305,7 @@ public class AppController {
         //获取登录用户
         User loginUser = userService.getLoginUser(request);
         //调用服务生成代码（流式）
-        Flux<String> contentFlux = appService.chatToGenCode(appId, message, loginUser);
+        Flux<String> contentFlux = appService.chatToGenCode(appId, message, loginUser, agent);
 
         //转换成 ServerSentEvent 格式
         return contentFlux

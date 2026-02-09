@@ -56,9 +56,10 @@ public interface AppService extends IService<App> {
      * @param appId       应用ID
      * @param message     消息
      * @param loginuser   登录用户
+     * @param agent       是否为langgraph4j智能体运行
      * @return Flux<String> 代码生成结果
      */
-    Flux<String> chatToGenCode(Long appId, String message, User loginuser);
+    Flux<String> chatToGenCode(Long appId, String message, User loginuser, boolean agent);
 
 
     /**

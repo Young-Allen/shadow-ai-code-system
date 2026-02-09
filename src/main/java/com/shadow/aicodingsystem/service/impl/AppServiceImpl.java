@@ -16,6 +16,7 @@ import com.shadow.aicodingsystem.core.handler.StreamHandlerExecutor;
 import com.shadow.aicodingsystem.exception.BusinessException;
 import com.shadow.aicodingsystem.exception.ErrorCode;
 import com.shadow.aicodingsystem.exception.ThrowUtils;
+import com.shadow.aicodingsystem.langgraph4j.CodeGenWorkflow;
 import com.shadow.aicodingsystem.model.dto.app.AppAddRequest;
 import com.shadow.aicodingsystem.model.entity.User;
 import com.shadow.aicodingsystem.model.vo.UserVO;
@@ -193,7 +194,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     }
 
     @Override
-    public Flux<String> chatToGenCode(Long appId, String message, User loginuser) {
+    public Flux<String> chatToGenCode(Long appId, String message, User loginuser, boolean agent) {
         //1. 参数校验
         ThrowUtils.throwIf(appId == null || appId < 0, ErrorCode.PARAMS_ERROR, "appId不能为空");
         ThrowUtils.throwIf(StrUtil.isBlank(message), ErrorCode.PARAMS_ERROR, "message不能为空");
@@ -213,7 +214,14 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
             throw  new BusinessException(ErrorCode.SYSTEM_ERROR, "不支持的代码生成类型");
         }
         //6. 调用 AI 生成代码流
-        Flux<String> codeStream = aiCodeGeneratorFacade.generateAndSaveCodeStream(message, codeGenTypeEnum, appId);
+        Flux<String> codeStream;
+        if(agent){
+            // agent模式：使用工作流生成代码
+            codeStream = new CodeGenWorkflow().executeWorkflowWithFlux(message, appId);
+        }else{
+            // 传统模式：调用AI生成代码（流式）
+            codeStream = aiCodeGeneratorFacade.generateAndSaveCodeStream(message, codeGenTypeEnum, appId);
+        }
         //7. 处理 AI 生成代码流
         return streamHandlerExecutor.doExecute(codeStream, chatHistoryService,  appId, loginuser, codeGenTypeEnum);
     }
