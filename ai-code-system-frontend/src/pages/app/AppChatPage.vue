@@ -13,6 +13,23 @@
           {{ codeGenTypeLabel }}
         </a-tag>
       </div>
+      <!-- 视图模式切换开关 -->
+      <div class="top-bar-center">
+        <a-radio-group v-model:value="viewMode" button-style="solid" size="small">
+          <a-radio-button value="code">
+            <template #icon>
+              <FileTextOutlined />
+            </template>
+            显示代码
+          </a-radio-button>
+          <a-radio-button value="preview">
+            <template #icon>
+              <EyeOutlined />
+            </template>
+            预览网页
+          </a-radio-button>
+        </a-radio-group>
+      </div>
       <div class="top-bar-right">
         <a-button v-if="canManage" @click="openDetailModal">
           <template #icon>
@@ -78,6 +95,7 @@
                 v-if="message.type === 'ai'"
                 class="message-text markdown-body"
                 v-html="renderMarkdown(message.content)"
+                @click="handleMessageClick"
               ></div>
               <div v-else class="message-text message-text-plain">{{ message.content }}</div>
               <div v-if="message.type === 'ai' && message.version" class="message-meta">
@@ -162,6 +180,14 @@
                 </template>
                 优化
               </a-button>
+              <a-radio-group
+                v-model:value="chatMode"
+                button-style="solid"
+                class="chat-mode-group"
+              >
+                <a-radio-button value="normal">普通模式</a-radio-button>
+                <a-radio-button value="agent">Agent模式</a-radio-button>
+              </a-radio-group>
             </div>
             <a-button
               type="primary"
@@ -179,19 +205,40 @@
         </div>
       </div>
 
-      <!-- 右侧网页展示区域 -->
+      <!-- 右侧展示区域 -->
       <div class="preview-panel">
-        <div class="preview-content" v-if="previewUrl">
-          <iframe
-            ref="previewIframeRef"
-            :key="previewUrl"
-            :src="previewUrl"
-            frameborder="0"
-            class="preview-iframe"
-          ></iframe>
+        <!-- 代码视图 -->
+        <div v-if="viewMode === 'code'" class="code-view">
+          <div v-if="previewStore.selectedFile" class="code-view-content">
+            <div class="code-view-header">
+              <span class="file-path">{{ previewStore.selectedFile.path }}</span>
+              <a-button type="text" size="small" @click="previewStore.clearSelection">
+                关闭
+              </a-button>
+            </div>
+            <div class="code-view-body">
+              <pre class="code-block hljs"><code :class="`language-${previewStore.currentFileLanguage}`" v-html="renderCode(previewStore.selectedFile.content, previewStore.currentFileLanguage)"></code></pre>
+            </div>
+          </div>
+          <div v-else class="code-view-placeholder">
+            <a-empty description="点击对话中的文件名查看代码" />
+          </div>
         </div>
-        <div v-else class="preview-placeholder">
-          <a-empty description="网站生成完成后将在此展示" />
+        
+        <!-- 预览视图 -->
+        <div v-else-if="viewMode === 'preview'" class="preview-view">
+          <div v-if="previewUrl" class="preview-content">
+            <iframe
+              ref="previewIframeRef"
+              :key="previewUrl"
+              :src="previewUrl"
+              frameborder="0"
+              class="preview-iframe"
+            ></iframe>
+          </div>
+          <div v-else class="preview-placeholder">
+            <a-empty description="网站生成完成后将在此展示" />
+          </div>
         </div>
       </div>
     </div>
@@ -225,10 +272,13 @@ import {
   InfoCircleOutlined,
   EyeOutlined,
   DownloadOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons-vue'
 import { deleteApp, deleteAppByAdmin, deployApp, getAppVoById } from '@/api/appController'
 import { listAppChatHistory } from '@/api/chatHistoryController'
 import { useLoginUserStore } from '@/stores/loginUser'
+import { usePreviewStore } from '@/stores/preview'
+import { useChatModeStore } from '@/stores/chatMode'
 import hamburgerImg from '@/assets/hamburger.png'
 import request from '@/request'
 import ACCESS_ENUM from '@/access/accessEnum'
@@ -240,10 +290,13 @@ import { formatTime, formatDate } from '@/utils/format'
 import { handleAvatarError } from '@/utils/image'
 import { CODE_GEN_TYPE_OPTIONS } from '@/constants/codeGenType'
 import { VisualEditor, type SelectedElement } from '@/utils/visualEditor'
+import { parseToolCalls, inferLanguageFromPath } from '@/utils/toolCallParser'
 
 const route = useRoute()
 const router = useRouter()
 const loginUserStore = useLoginUserStore()
+const previewStore = usePreviewStore()
+const chatModeStore = useChatModeStore()
 
 const appId = ref<string>('')
 const appName = ref('')
@@ -289,6 +342,18 @@ const inputTooltip = computed(() => (permissionDisabled.value ? '无法在别人
 // 预览
 const previewUrl = ref('')
 const codeGenType = ref('')
+
+// 视图模式（从store获取）
+const viewMode = computed({
+  get: () => previewStore.viewMode,
+  set: (value) => previewStore.setViewMode(value),
+})
+
+// 对话模式：与 store 双向同步，与首页一致
+const chatMode = computed({
+  get: () => (chatModeStore.agentMode ? 'agent' : 'normal'),
+  set: (v: 'normal' | 'agent') => chatModeStore.setMode(v),
+})
 
 // 可视化编辑相关
 const previewIframeRef = ref<HTMLIFrameElement>()
@@ -370,11 +435,85 @@ const md: MarkdownIt = new MarkdownIt({
 })
 
 /**
- * 渲染 Markdown 内容为 HTML
+ * 渲染 Markdown 内容为 HTML，并处理工具调用链接
  */
 const renderMarkdown = (content: string): string => {
   if (!content) return ''
-  return md.render(content)
+  
+  // 解析工具调用
+  const toolCalls = parseToolCalls(content)
+  
+  // 为每个工具调用创建文件映射
+  toolCalls.forEach((toolCall) => {
+    if (toolCall.fileContent) {
+      previewStore.addFile(toolCall.filePath, toolCall.fileContent, toolCall.language || 'plaintext')
+    }
+  })
+  
+  // 在渲染Markdown之前，先移除工具调用相关的代码块
+  let processedContent = content
+  toolCalls.forEach((toolCall) => {
+    const filePath = toolCall.filePath
+    // 转义特殊字符用于正则
+    const escapedPath = filePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    // 匹配 [工具调用] 写入文件 <文件路径> 后面跟着的代码块
+    // 格式：[工具调用] 写入文件 <文件路径>\n```<lang>\n<code>\n```
+    const codeBlockPattern = new RegExp(
+      `(\\[工具调用\\]\\s*写入文件\\s+${escapedPath})\\s*\`\`\`[^\\n]*\\n[\\s\\S]*?\`\`\``,
+      'g'
+    )
+    // 移除代码块，只保留工具调用行
+    processedContent = processedContent.replace(codeBlockPattern, `$1`)
+  })
+  
+  // 渲染Markdown
+  let html = md.render(processedContent)
+  
+  // 将工具调用中的文件名替换为可点击链接
+  toolCalls.forEach((toolCall) => {
+    const filePath = toolCall.filePath
+    // 转义特殊字符用于正则
+    const escapedPath = filePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    // 匹配 [工具调用] 写入文件 <文件路径> 模式（可能在<p>标签中）
+    const regex = new RegExp(
+      `(\\[工具调用\\]\\s*写入文件\\s+)(${escapedPath})`,
+      'g'
+    )
+    html = html.replace(
+      regex,
+      `$1<a href="#" class="file-link" data-file-path="${filePath.replace(/"/g, '&quot;')}" onclick="return false;">${filePath}</a>`
+    )
+  })
+  
+  return html
+}
+
+/**
+ * 处理文件链接点击
+ */
+const handleFileLinkClick = (filePath: string) => {
+  const fileInfo = previewStore.fileMap.get(filePath)
+  if (fileInfo) {
+    previewStore.selectFile(filePath, fileInfo.content, fileInfo.language)
+  } else {
+    // 如果文件不在缓存中，尝试从当前消息中解析
+    // 遍历所有消息查找该文件
+    for (const message of messages.value) {
+      if (message.type === 'ai') {
+        const toolCalls = parseToolCalls(message.content)
+        const toolCall = toolCalls.find((tc) => tc.filePath === filePath)
+        if (toolCall && toolCall.fileContent) {
+          previewStore.selectFile(
+            filePath,
+            toolCall.fileContent,
+            toolCall.language || inferLanguageFromPath(filePath)
+          )
+          return
+        }
+      }
+    }
+    message.warning(`未找到文件：${filePath}`)
+  }
 }
 
 const handleGoHome = () => {
@@ -542,11 +681,12 @@ const sendMessageToAI = async (messageText: string) => {
       timestamp: Date.now(),
     })
 
-    // 构建SSE请求URL
+    // 构建SSE请求URL（agent 参数与 chatToGenCode 一致：普通模式 false，Agent 模式 true）
     const baseURL = request.defaults.baseURL
+    const agent = chatModeStore.agentMode
     const url = `${baseURL}/app/chat/gen/code?appId=${appId.value}&message=${encodeURIComponent(
       messageText
-    )}`
+    )}&agent=${agent}`
 
     // 关闭旧连接
     if (eventSource) {
@@ -761,6 +901,20 @@ const updatePreview = () => {
         }
       }, 1000)
     })
+  }
+}
+
+/**
+ * 处理消息区域点击事件（用于文件链接）
+ */
+const handleMessageClick = (event: MouseEvent) => {
+  const target = event.target as HTMLElement
+  if (target.classList.contains('file-link')) {
+    event.preventDefault()
+    const filePath = target.getAttribute('data-file-path')
+    if (filePath) {
+      handleFileLinkClick(filePath)
+    }
   }
 }
 
@@ -1017,6 +1171,27 @@ const handleDeleteApp = async () => {
 }
 
 /**
+ * 渲染代码内容（高亮显示）
+ */
+const renderCode = (content: string, language: string): string => {
+  if (!content) return ''
+  if (language && hljs.getLanguage(language)) {
+    try {
+      return hljs.highlight(content, { language, ignoreIllegals: true }).value
+    } catch (__) {
+      // 忽略错误
+    }
+  }
+  // 如果没有指定语言，尝试自动检测
+  try {
+    return hljs.highlightAuto(content).value
+  } catch (__) {
+    // 如果高亮失败，返回转义的代码
+    return md.utils.escapeHtml(content)
+  }
+}
+
+/**
  * 格式化消息内容（支持代码高亮等）
  */
 const formatMessage = (content: string) => {
@@ -1155,12 +1330,22 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex: 1;
+}
+
+.top-bar-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
 }
 
 .top-bar-right {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
 }
 
 .back-btn {
@@ -1517,7 +1702,12 @@ onBeforeUnmount(() => {
 
 .input-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
+}
+
+.chat-mode-group {
+  flex-shrink: 0;
 }
 
 .action-btn {
@@ -1555,16 +1745,27 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
+/* 预览视图容器 */
+.preview-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
 .preview-content {
   flex: 1;
   overflow: hidden;
   position: relative;
+  min-height: 0;
 }
 
 .preview-iframe {
   width: 100%;
   height: 100%;
   border: none;
+  display: block;
 }
 
 .preview-placeholder {
@@ -1572,6 +1773,95 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 0;
+}
+
+/* 代码视图样式 */
+.code-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+}
+
+.code-view-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.code-view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e8e8e8;
+  background: #fafafa;
+  flex-shrink: 0;
+}
+
+.file-path {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+.code-view-body {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  background: #0d1117;
+}
+
+.code-block {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #c9d1d9;
+}
+
+.code-block code {
+  display: block;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.code-view-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 文件链接样式 */
+.markdown-body :deep(.file-link) {
+  color: #1890ff;
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 500;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: all 0.2s;
+}
+
+.markdown-body :deep(.file-link:hover) {
+  background-color: #e6f7ff;
+  text-decoration: underline;
+}
+
+.markdown-body :deep(.file-link:active) {
+  color: #096dd9;
 }
 
 /* 响应式设计 */

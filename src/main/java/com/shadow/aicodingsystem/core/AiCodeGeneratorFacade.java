@@ -136,10 +136,10 @@ public class AiCodeGeneratorFacade {
                     })
                     // 2. 处理流式生成的工具参数 (1.11.0 特有)
                     //如果你想让前端实时看到 JSON 参数在一点点崩出来，可以使用这个钩子
-                    .onPartialToolCall((PartialToolCall partialToolCall) -> {
-                        ToolRequestMessage msg = new ToolRequestMessage(partialToolCall);
-                        sink.next(JSONUtil.toJsonStr(msg));
-                    })
+//                    .onPartialToolCall((PartialToolCall partialToolCall) -> {
+//                        ToolRequestMessage msg = new ToolRequestMessage(partialToolCall);
+//                        sink.next(JSONUtil.toJsonStr(msg));
+//                    })
                     // 4. 处理工具执行完毕后的结果
                     .onToolExecuted((ToolExecution toolExecution) -> {
                         ToolExecutedMessage msg = new ToolExecutedMessage(toolExecution);
