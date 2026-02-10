@@ -39,6 +39,10 @@ public class AiCodeGeneratorServiceFactory {
     private ToolManager toolManager;
 
 
+    @Resource
+    private ToolManager toolManager;
+
+
     /**
      * AI 服务实例缓存
      *  缓存策略：
