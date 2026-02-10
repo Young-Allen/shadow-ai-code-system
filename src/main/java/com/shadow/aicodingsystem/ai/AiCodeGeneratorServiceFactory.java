@@ -32,16 +32,9 @@ public class AiCodeGeneratorServiceFactory {
     @Resource
     private RedisChatMemoryStore redisChatMemoryStore;
 
-    @Resource
-    private ChatHistoryService chatHistoryService;
 
     @Resource
     private ToolManager toolManager;
-
-
-    @Resource
-    private ToolManager toolManager;
-
 
     /**
      * AI 服务实例缓存
