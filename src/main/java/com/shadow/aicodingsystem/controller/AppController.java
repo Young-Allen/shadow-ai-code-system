@@ -17,12 +17,15 @@ import com.shadow.aicodingsystem.model.dto.app.*;
 import com.shadow.aicodingsystem.model.entity.App;
 import com.shadow.aicodingsystem.model.entity.User;
 import com.shadow.aicodingsystem.model.vo.AppVO;
+import com.shadow.aicodingsystem.ratelimter.annotation.RateLimit;
+import com.shadow.aicodingsystem.ratelimter.enums.RateLimitType;
 import com.shadow.aicodingsystem.service.AppService;
 import com.shadow.aicodingsystem.service.ProjectDownloadService;
 import com.shadow.aicodingsystem.service.UserService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
@@ -182,6 +185,11 @@ public class AppController {
      * @return BaseResponse<Page<AppVO>> 返回分页的应用列表
      */
     @PostMapping("/list/featured/page/vo")
+    @Cacheable(
+            value = "good_app_page",
+            key = "T(com.shadow.aicodingsystem.utils.CacheKeyUtils).generateKey(#appQueryRequest)",
+            condition = "#appQueryRequest.pageNum <= 10"
+    )
     public BaseResponse<Page<AppVO>> listFeaturedAppVOByPage(@RequestBody AppQueryRequest appQueryRequest) {
         ThrowUtils.throwIf(appQueryRequest == null, ErrorCode.PARAMS_ERROR);
         appQueryRequest.setPriority(AppConstant.GOOD_APP_PRIORITY);
@@ -294,6 +302,7 @@ public class AppController {
      * @return 返回一个Flux<String>类型的响应流，包含生成的代码内容
      */
     @GetMapping(value = "/chat/gen/code", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @RateLimit(limitType = RateLimitType.USER, rate = 5, rateInterval = 60, message = "AI 对话请求过于频繁，请稍后再试")
     public Flux<ServerSentEvent<String>> chatToGenCode(@RequestParam Long appId,
                                                        @RequestParam String message,
                                                        @RequestParam(defaultValue = "false") boolean agent,

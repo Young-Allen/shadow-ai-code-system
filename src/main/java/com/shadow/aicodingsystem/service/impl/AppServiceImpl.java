@@ -8,6 +8,8 @@ import cn.hutool.core.util.StrUtil;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.shadow.aicodingsystem.ai.AiCodeGenTypeRoutingService;
+import com.shadow.aicodingsystem.ai.AiCodeGenTypeRoutingServiceFactory;
+import com.shadow.aicodingsystem.ai.AiCodeGeneratorServiceFactory;
 import com.shadow.aicodingsystem.ai.model.enums.CodeGenTypeEnum;
 import com.shadow.aicodingsystem.constant.AppConstant;
 import com.shadow.aicodingsystem.core.AiCodeGeneratorFacade;
@@ -74,16 +76,19 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     private Executor screenshotExecutor;
 
     @Resource
-    private AiCodeGenTypeRoutingService aiCodeGenTypeRoutingService;
+    private AiCodeGenTypeRoutingServiceFactory aiCodeGenTypeRoutingServiceFactory;
 
     @Override
     public Long createApp(AppAddRequest appAddRequest, User loginuser) {
         String initPrompt = appAddRequest.getInitPrompt();
         ThrowUtils.throwIf(StrUtil.isBlank(initPrompt), ErrorCode.PARAMS_ERROR, "初始化提示不能为空");
+
         App app = new App();
         BeanUtil.copyProperties(appAddRequest, app);
         app.setUserId(loginuser.getId());
         app.setAppName(initPrompt.substring(0, Math.min(initPrompt.length(), 12)));
+
+        AiCodeGenTypeRoutingService aiCodeGenTypeRoutingService = aiCodeGenTypeRoutingServiceFactory.getAiCodeGenTypeRoutingService();
         CodeGenTypeEnum codeGenTypeEnum = aiCodeGenTypeRoutingService.routeCodeGenType(initPrompt);
         app.setCodeGenType(codeGenTypeEnum.getValue());
 
