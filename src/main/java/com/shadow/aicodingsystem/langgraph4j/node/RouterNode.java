@@ -1,6 +1,7 @@
 package com.shadow.aicodingsystem.langgraph4j.node;
 
 import com.shadow.aicodingsystem.ai.AiCodeGenTypeRoutingService;
+import com.shadow.aicodingsystem.ai.AiCodeGenTypeRoutingServiceFactory;
 import com.shadow.aicodingsystem.ai.model.enums.CodeGenTypeEnum;
 import com.shadow.aicodingsystem.langgraph4j.state.WorkflowContext;
 import com.shadow.aicodingsystem.utils.SpringContextUtil;
@@ -18,8 +19,9 @@ public class RouterNode {
             log.info("执行节点：智能路由");
             CodeGenTypeEnum generationType;
             try{
-                AiCodeGenTypeRoutingService routingService = SpringContextUtil.getBean(AiCodeGenTypeRoutingService.class);
-                generationType = routingService.routeCodeGenType(context.getOriginalPrompt());
+                AiCodeGenTypeRoutingServiceFactory routingServiceFactory = SpringContextUtil.getBean(AiCodeGenTypeRoutingServiceFactory.class);
+                AiCodeGenTypeRoutingService aiCodeGenTypeRoutingService = routingServiceFactory.getAiCodeGenTypeRoutingService();
+                generationType = aiCodeGenTypeRoutingService.routeCodeGenType(context.getOriginalPrompt());
                 log.info("AI 智能路由完成，生成类型为：{}", generationType);
             }catch (Exception e ){
                 log.error("AI 智能路由失败， 使用默认HTML类型：{}", e.getMessage());
