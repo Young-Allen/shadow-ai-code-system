@@ -6,7 +6,7 @@ ZeroCode System 是一个 **AI 驱动的代码生成与应用搭建平台**，�
 
 ![img.png](asset/img.png)
 
-![img.png](asset/chat.png)
+![img.png](asset/chat.PNG)
 ---
 
 ## 1. 项目部署与运行步骤
